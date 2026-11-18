@@ -195,13 +195,30 @@ export const COMMUNITY_CHALLENGES: CommunityChallenge[] = [
   },
 ];
 
+function resolveDemoBaseParticulates(location: CityLocation): { pm25: number; pm10: number } {
+  if (location.id === 'delhi-in') return { pm25: 118, pm10: 198 };
+  if (location.isIndia) return { pm25: 62, pm10: 96 };
+  return { pm25: 18, pm10: 31 };
+}
+
+function getDemoDailyFactor(offset: number): number {
+  if (offset === 0) return 1;
+  if (offset === 1) return 1.06;
+  return 0.92;
+}
+
+function getDemoDailyLabel(offset: number, isoDate: string): string {
+  if (offset === 0) return 'Today';
+  if (offset === 1) return 'Tomorrow';
+  return isoDate.slice(5, 10);
+}
+
 export function buildDemoFallbackSnapshot(
   location: CityLocation,
   reason = 'Live environmental provider unreachable. Displaying labeled offline demonstration snapshot.'
 ): EnvironmentalSnapshot {
   // Deterministic illustrative baseline keyed to city characteristics so demo fallback stays realistic & honest
-  const basePm25 = location.id === 'delhi-in' ? 118 : location.isIndia ? 62 : 18;
-  const basePm10 = location.id === 'delhi-in' ? 198 : location.isIndia ? 96 : 31;
+  const { pm25: basePm25, pm10: basePm10 } = resolveDemoBaseParticulates(location);
   const pollutants = {
     pm25: basePm25,
     pm10: basePm10,
@@ -237,13 +254,14 @@ export function buildDemoFallbackSnapshot(
 
   const daily = [0, 1, 2].map((offset) => {
     const dt = new Date(now.getTime() + offset * 86400 * 1000);
-    const factor = offset === 0 ? 1 : offset === 1 ? 1.06 : 0.92;
+    const iso = dt.toISOString();
+    const factor = getDemoDailyFactor(offset);
     const avgPm25 = Math.round(basePm25 * factor * 10) / 10;
     const maxPm25 = Math.round(avgPm25 * 1.25 * 10) / 10;
     const dCpcb = calculateCpcbAqi({ ...pollutants, pm25: avgPm25 });
     return {
-      date: dt.toISOString().slice(0, 10),
-      label: offset === 0 ? 'Today' : offset === 1 ? 'Tomorrow' : dt.toISOString().slice(5, 10),
+      date: iso.slice(0, 10),
+      label: getDemoDailyLabel(offset, iso),
       avgPm25,
       maxPm25,
       cpcbAqi: dCpcb.aqi,

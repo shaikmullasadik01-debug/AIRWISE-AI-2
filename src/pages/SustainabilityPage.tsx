@@ -123,21 +123,24 @@ export function SustainabilityPage({
           <div
             className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5"
             role="tablist"
-            tabIndex={-1}
             aria-label="Filter sustainability habits"
-            onKeyDown={(e) =>
-              handleTabListKeyDown(e, CATEGORY_FILTERS, categoryFilter, setCategoryFilter)
-            }
           >
             {CATEGORY_FILTERS.map((cat) => {
               const active = categoryFilter === cat;
+              const slug = cat.toLowerCase();
               return (
                 <button
                   key={cat}
+                  id={`sustainability-tab-${slug}`}
                   type="button"
                   role="tab"
+                  tabIndex={active ? 0 : -1}
                   aria-selected={active}
+                  aria-controls="sustainability-habits-panel"
                   onClick={() => setCategoryFilter(cat)}
+                  onKeyDown={(e) =>
+                    handleTabListKeyDown(e, CATEGORY_FILTERS, categoryFilter, setCategoryFilter)
+                  }
                   className={`shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
                     active ? 'bg-[#102A43] text-white' : 'text-slate-600 hover:bg-slate-100'
                   }`}
@@ -147,13 +150,18 @@ export function SustainabilityPage({
               );
             })}
           </div>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-600">
             Toggle habits your household is adopting to update your score
           </span>
         </div>
 
         {/* Alternatives List */}
-        <div className="space-y-4" role="tabpanel" aria-label={`${categoryFilter} sustainability alternatives`}>
+        <div
+          id="sustainability-habits-panel"
+          className="space-y-4"
+          role="tabpanel"
+          aria-labelledby={`sustainability-tab-${categoryFilter.toLowerCase()}`}
+        >
           {visible.map((alt) => (
             <article key={alt.id} className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">

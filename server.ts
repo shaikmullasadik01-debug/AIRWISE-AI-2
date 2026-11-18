@@ -109,7 +109,8 @@ export function isAllowedOrigin(origin: string, req: Request): boolean {
   ]);
   const appUrl = process.env.APP_URL;
   if (appUrl && appUrl !== 'MY_APP_URL') {
-    allowedOrigins.add(appUrl.replace(/\/$/, ''));
+    const safeAppUrl = parseSafeOrigin(appUrl.replace(/\/$/, ''));
+    if (safeAppUrl) allowedOrigins.add(safeAppUrl.origin);
   }
 
   const host = req.headers.host;
@@ -118,7 +119,10 @@ export function isAllowedOrigin(origin: string, req: Request): boolean {
     allowedOrigins.add(`http://${host}`);
   }
 
-  return allowedOrigins.has(parsedOrigin.origin) || CLOUD_RUN_HOST_PATTERN.test(parsedOrigin.hostname);
+  const isTrustedCloudRunOrigin =
+    parsedOrigin.protocol === 'https:' && CLOUD_RUN_HOST_PATTERN.test(parsedOrigin.hostname);
+
+  return allowedOrigins.has(parsedOrigin.origin) || isTrustedCloudRunOrigin;
 }
 
 export function createApp() {
@@ -160,9 +164,11 @@ export function createApp() {
     next();
   });
 
-  // Restrictive CORS & CSRF origin enforcement for state-changing API calls
+  // Restrictive CORS & CSRF origin / Fetch Metadata enforcement for state-changing API calls
   app.use((req, res, next) => {
     const origin = req.headers.origin;
+    const isStateChangingApi =
+      req.path.startsWith('/api') && req.method !== 'GET' && req.method !== 'HEAD';
 
     if (origin) {
       const allowed = isAllowedOrigin(origin, req);
@@ -171,9 +177,11 @@ export function createApp() {
         res.setHeader('Vary', 'Origin');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      } else if (req.path.startsWith('/api') && req.method !== 'GET' && req.method !== 'HEAD') {
+      } else if (isStateChangingApi) {
         return res.status(403).json({ error: 'Cross-origin request blocked by security policy.' });
       }
+    } else if (isStateChangingApi && req.headers['sec-fetch-site'] === 'cross-site') {
+      return res.status(403).json({ error: 'Cross-site request blocked by security policy.' });
     }
 
     if (req.method === 'OPTIONS') {

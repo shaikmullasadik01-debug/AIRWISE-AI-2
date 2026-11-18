@@ -240,11 +240,11 @@ export function LandingPage({ snapshot, onNavigate }: LandingPageProps) {
         </section>
 
         {/* Trust & Transparency */}
-        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6" aria-label="Trust and Integrity">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
             <div className="flex items-center gap-2 text-xs font-semibold text-[#102A43]">
               <Wind className="h-4 w-4 text-[#0F766E]" aria-hidden="true" />
-              <span>Trust, Scientific Integrity & Privacy</span>
+              <h2>Trust, Scientific Integrity & Privacy</h2>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-6 text-sm text-slate-600 md:grid-cols-3">
               {TRUST_PILLARS.map((pillar) => (

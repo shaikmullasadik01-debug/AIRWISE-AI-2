@@ -133,21 +133,24 @@ export function CommunityPage({
           <div
             className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1"
             role="tablist"
-            tabIndex={-1}
             aria-label="Filter challenges by category"
-            onKeyDown={(e) =>
-              handleTabListKeyDown(e, CHALLENGE_FILTERS, challengeFilter, setChallengeFilter)
-            }
           >
             {CHALLENGE_FILTERS.map((cat) => {
               const active = challengeFilter === cat;
+              const slug = cat.toLowerCase();
               return (
                 <button
                   key={cat}
+                  id={`challenge-tab-${slug}`}
                   type="button"
                   role="tab"
+                  tabIndex={active ? 0 : -1}
                   aria-selected={active}
+                  aria-controls="community-challenges-panel"
                   onClick={() => setChallengeFilter(cat)}
+                  onKeyDown={(e) =>
+                    handleTabListKeyDown(e, CHALLENGE_FILTERS, challengeFilter, setChallengeFilter)
+                  }
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
                     active ? 'bg-[#102A43] text-white' : 'text-slate-600 hover:bg-slate-100'
                   }`}
@@ -160,9 +163,10 @@ export function CommunityPage({
         </div>
 
         <div
+          id="community-challenges-panel"
           className="grid grid-cols-1 gap-4 md:grid-cols-2"
           role="tabpanel"
-          aria-label={`${challengeFilter} neighborhood challenges`}
+          aria-labelledby={`challenge-tab-${challengeFilter.toLowerCase()}`}
         >
           {visibleChallenges.map((chal) => {
             const joined = joinedChallengeIds.includes(chal.id);

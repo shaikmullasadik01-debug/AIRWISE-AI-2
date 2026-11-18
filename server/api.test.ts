@@ -215,6 +215,32 @@ test('Security headers, 404 API isolation, prototype pollution, payload size, an
     });
     assert.equal(wrongContentType.status, 415);
 
+    // HTTP Parameter Pollution (duplicate query params) is rejected with 400
+    const hppRes = await fetch(`${baseUrl}/api/air-quality?lat=28.6&lat=29&lon=77.2`);
+    assert.equal(hppRes.status, 400);
+
+    // Fetch Metadata Sec-Fetch-Site: cross-site without trusted Origin is blocked with 403
+    const crossSiteMeta = await fetch(`${baseUrl}/api/assistant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Sec-Fetch-Site': 'cross-site',
+      },
+      body: JSON.stringify(VALID_ASSISTANT_BODY),
+    });
+    assert.equal(crossSiteMeta.status, 403);
+
+    // Invisible zero-width/control character only question is rejected with 400
+    const invisibleQuestion = await fetch(`${baseUrl}/api/assistant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...VALID_ASSISTANT_BODY,
+        question: ' \u200B\u0007\uFEFF ',
+      }),
+    });
+    assert.equal(invisibleQuestion.status, 400);
+
     // Control characters in query strings are sanitized before constructing location snapshot
     const cleanQuery = await fetch(
       `${baseUrl}/api/air-quality?lat=28.6139&lon=77.209&name=${encodeURIComponent('Delhi\x07Test')}`
@@ -227,11 +253,15 @@ test('Security headers, 404 API isolation, prototype pollution, payload size, an
 
 const makeOriginRequest = (host?: string) => ({ headers: host ? { host } : {} }) as never;
 
-test('isAllowedOrigin enforces strict protocol, host, and Cloud Run preview validation', () => {
+test('isAllowedOrigin enforces strict protocol, host, APP_URL, and Cloud Run preview validation', () => {
   assert.equal(isAllowedOrigin('http://localhost:3000', makeOriginRequest('localhost:3000')), true);
   assert.equal(
     isAllowedOrigin('https://ais-dev-demo.asia-southeast1.run.app', makeOriginRequest('localhost:3000')),
     true
+  );
+  assert.equal(
+    isAllowedOrigin('http://ais-dev-demo.asia-southeast1.run.app', makeOriginRequest('localhost:3000')),
+    false
   );
   assert.equal(isAllowedOrigin('https://evil.example', makeOriginRequest('evil.example')), false);
   assert.equal(isAllowedOrigin('javascript:alert(1)', makeOriginRequest('localhost:3000')), false);
@@ -239,6 +269,24 @@ test('isAllowedOrigin enforces strict protocol, host, and Cloud Run preview vali
     isAllowedOrigin('https://localhost:3000/extra-path', makeOriginRequest('localhost:3000')),
     false
   );
+
+  const prevAppUrl = process.env.APP_URL;
+  try {
+    process.env.APP_URL = 'https://airwise.example.org/';
+    assert.equal(
+      isAllowedOrigin('https://airwise.example.org', makeOriginRequest('localhost:3000')),
+      true
+    );
+
+    process.env.APP_URL = 'not-a-valid-url';
+    assert.equal(isAllowedOrigin('https://evil.example', makeOriginRequest('localhost:3000')), false);
+  } finally {
+    if (prevAppUrl === undefined) {
+      delete process.env.APP_URL;
+    } else {
+      process.env.APP_URL = prevAppUrl;
+    }
+  }
 });
 
 test('Rate limiter emits standard RateLimit headers and enforces 429 on burst traffic', async () => {

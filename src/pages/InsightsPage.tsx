@@ -169,9 +169,9 @@ export function InsightsPage({ snapshot }: InsightsPageProps) {
 
         <div className="space-y-4 lg:col-span-7">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h3 className="font-display text-base font-bold text-[#102A43]">
+            <h2 className="font-display text-base font-bold text-[#102A43]">
               Weather-Driven Smog & Temperature Inversion Pattern
-            </h3>
+            </h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-700">{insights.weatherExplanation}</p>
             {snapshot.pollutants.pm25 !== null && snapshot.pollutants.pm10 !== null && snapshot.pollutants.pm10 > 0 && (
               <p className="mt-2.5 text-xs text-slate-600">
@@ -188,9 +188,9 @@ export function InsightsPage({ snapshot }: InsightsPageProps) {
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h3 className="font-display text-base font-bold text-[#102A43]">
+            <h2 className="font-display text-base font-bold text-[#102A43]">
               Preventive Actions for Upcoming Windows
-            </h3>
+            </h2>
             <ul className="mt-2.5 list-disc space-y-2 pl-4 text-sm text-slate-700">
               <li>Schedule outdoor errands or brief ventilation near the cleanest window ({insights.cleanestWindow}).</li>
               <li>Close bedroom and living-room windows ahead of evening rush hours ({insights.peakWindow}).</li>

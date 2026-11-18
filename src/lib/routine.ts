@@ -22,6 +22,21 @@ export function formatHouseholdGroups(groups: HouseholdGroup[]): string {
   return groups.map((g) => HOUSEHOLD_LABELS[g] ?? g).join(', ');
 }
 
+function resolveRoutineSuitability(
+  avoidCondition: boolean,
+  cautionCondition: boolean
+): RoutineSlot['airSuitability'] {
+  if (avoidCondition) return 'Avoid Outdoor Exposure';
+  if (cautionCondition) return 'Caution';
+  return 'Suitable';
+}
+
+function selectByAqiTier<T>(highRisk: boolean, elevated: boolean, highVal: T, elevatedVal: T, lowVal: T): T {
+  if (highRisk) return highVal;
+  if (elevated) return elevatedVal;
+  return lowVal;
+}
+
 export function buildDailyRoutine(
   snapshot: EnvironmentalSnapshot,
   profile: FamilyProfile
@@ -39,30 +54,38 @@ export function buildDailyRoutine(
   const highRisk = aqi > 200;
   const elevated = aqi > 100 && aqi <= 200;
 
-  const morningSuitability = highRisk
-    ? 'Avoid Outdoor Exposure'
-    : elevated || hasSensitive || hasChildren || hasOlder
-      ? 'Caution'
-      : 'Suitable';
-
-  const afternoonSuitability = aqi > 300
-    ? 'Avoid Outdoor Exposure'
-    : aqi > 150 || (wind < 6 && aqi > 100)
-      ? 'Caution'
-      : 'Suitable';
-
-  const eveningSuitability = aqi > 200 ? 'Avoid Outdoor Exposure' : elevated ? 'Caution' : 'Suitable';
+  const morningSuitability = resolveRoutineSuitability(
+    highRisk,
+    elevated || hasSensitive || hasChildren || hasOlder
+  );
+  const afternoonSuitability = resolveRoutineSuitability(
+    aqi > 300,
+    aqi > 150 || (wind < 6 && aqi > 100)
+  );
+  const eveningSuitability = resolveRoutineSuitability(highRisk, elevated);
+  const morningSummary = selectByAqiTier(
+    highRisk,
+    elevated,
+    'Elevated morning pollution risk — keep exercise and children indoors.',
+    'Moderate morning particulates — favor low-traffic corridors.',
+    'Favorable morning air — good window for outdoor movement.'
+  );
+  const sensitiveQualifier =
+    hasChildren || hasSensitive ? ' especially for children and respiratory-sensitive members' : '';
+  const morningWhat = selectByAqiTier(
+    highRisk,
+    elevated,
+    'Replace morning outdoor walks, jogging, or playground time with indoor stretching or low-dust home workouts.',
+    `Limit vigorous outdoor exertion${sensitiveQualifier}; keep walks to tree-lined side streets away from main roads.`,
+    'Proceed with normal outdoor walking or light exercise while checking hourly changes.'
+  );
 
   const morningActions: StructuredRecommendation[] = [
     {
       id: 'morning-check',
       title: highRisk ? 'Move morning exercise indoors' : 'Time morning outdoor activity carefully',
-      priority: highRisk ? 'Urgent' : elevated ? 'High' : 'Low',
-      what: highRisk
-        ? 'Replace morning outdoor walks, jogging, or playground time with indoor stretching or low-dust home workouts.'
-        : elevated
-          ? `Limit vigorous outdoor exertion${hasChildren || hasSensitive ? ' especially for children and respiratory-sensitive members' : ''}; keep walks to tree-lined side streets away from main roads.`
-          : 'Proceed with normal outdoor walking or light exercise while checking hourly changes.',
+      priority: selectByAqiTier(highRisk, elevated, 'Urgent', 'High', 'Low'),
+      what: morningWhat,
       why: `Morning surface inversions and cool temperatures (${snapshot.weather.temperatureC !== null ? `${snapshot.weather.temperatureC}°C` : 'calm air'}) often trap fine particulates near ground level before daytime solar warming disperses them.`,
       when: 'Between 06:00 and 09:30 local time.',
       expectedBenefits: highRisk
@@ -164,11 +187,7 @@ export function buildDailyRoutine(
       period: 'Morning',
       timeWindow: '06:00 – 11:00',
       airSuitability: morningSuitability,
-      summary: highRisk
-        ? 'Elevated morning pollution risk — keep exercise and children indoors.'
-        : elevated
-          ? 'Moderate morning particulates — favor low-traffic corridors.'
-          : 'Favorable morning air — good window for outdoor movement.',
+      summary: morningSummary,
       actions: morningActions,
     },
     {

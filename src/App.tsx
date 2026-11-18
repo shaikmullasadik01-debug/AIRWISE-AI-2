@@ -61,6 +61,7 @@ export default function App() {
     toggleSavedGreeneryTip,
     toggleJoinChallenge,
     setCalcInput,
+    resetCalcInput,
     setAlertPrefs,
     markAlertRead,
     markAllAlertsRead,
@@ -137,18 +138,7 @@ export default function App() {
             <CalculatorPage
               input={calcInput}
               onChangeInput={setCalcInput}
-              onResetInput={() =>
-                setCalcInput((prev) => ({
-                  carKmReplacedByTransitPerWeek: 30,
-                  carKmCarpoolPerWeek: 16,
-                  carKmReplacedByWalkCyclePerWeek: 8,
-                  electricitySavedKwhPerWeek: 10,
-                  ledBulbsReplacedCount: 4,
-                  wasteReducedKgPerWeek: 3,
-                  gridRegion: prev.gridRegion,
-                  householdSize: prev.householdSize,
-                }))
-              }
+              onResetInput={resetCalcInput}
             />
           )}
 

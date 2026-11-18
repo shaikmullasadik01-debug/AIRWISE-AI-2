@@ -123,8 +123,13 @@ export const AssistantRequestSchema = z.object({
   question: z
     .string()
     .trim()
-    .min(3, 'Please ask a question of at least 3 characters.')
-    .max(600, 'Please keep your question under 600 characters.'),
+    .transform((s) => stripControlChars(s, true))
+    .pipe(
+      z
+        .string()
+        .min(3, 'Please ask a question of at least 3 characters.')
+        .max(600, 'Please keep your question under 600 characters.')
+    ),
   locationName: z
     .string()
     .trim()

@@ -94,31 +94,37 @@ export function AwarenessCardBuilder({ snapshot }: AwarenessCardBuilderProps) {
         <div
           className="flex gap-1.5 rounded-lg bg-slate-100 p-1"
           role="tablist"
-          tabIndex={-1}
           aria-label="Awareness card theme"
-          onKeyDown={(e) => handleTabListKeyDown(e, CARD_THEME_IDS, cardTheme, setCardTheme)}
         >
-          {CARD_THEMES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={cardTheme === t.id}
-              onClick={() => setCardTheme(t.id)}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
-                cardTheme === t.id ? 'bg-white text-[#102A43] shadow-xs' : 'text-slate-600'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {CARD_THEMES.map((t) => {
+            const active = cardTheme === t.id;
+            return (
+              <button
+                key={t.id}
+                id={`awareness-tab-${t.id}`}
+                type="button"
+                role="tab"
+                tabIndex={active ? 0 : -1}
+                aria-selected={active}
+                aria-controls="awareness-card-panel"
+                onClick={() => setCardTheme(t.id)}
+                onKeyDown={(e) => handleTabListKeyDown(e, CARD_THEME_IDS, cardTheme, setCardTheme)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
+                  active ? 'bg-white text-[#102A43] shadow-xs' : 'text-slate-600'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div
+        id="awareness-card-panel"
         className="mt-4 rounded-xl bg-[#102A43] p-6 text-white"
         role="tabpanel"
-        aria-label={activeCard.headline}
+        aria-labelledby={`awareness-tab-${cardTheme}`}
       >
         <p className="text-xs font-semibold text-[#20C997]">AIRWISE AI · COMMUNITY ACTION</p>
         <h3 className="mt-2 font-display text-xl font-bold">{activeCard.headline}</h3>

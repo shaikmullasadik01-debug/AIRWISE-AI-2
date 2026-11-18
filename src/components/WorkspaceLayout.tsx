@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import type { CityLocation, PageId } from '../types/airwise.ts';
+import { handleModalFocusTrapKeyDown } from '../lib/a11y.ts';
 import { Logo } from './Logo.tsx';
 
 interface WorkspaceLayoutProps {
@@ -119,6 +120,7 @@ export function WorkspaceLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const closeDrawerBtnRef = useRef<HTMLButtonElement | null>(null);
   const openDrawerBtnRef = useRef<HTMLButtonElement | null>(null);
+  const drawerPanelRef = useRef<HTMLDivElement | null>(null);
   const wasOpenRef = useRef(false);
 
   const currentItem = NAV_ITEMS.find((i) => i.id === activePage) ?? NAV_ITEMS[0];
@@ -174,18 +176,21 @@ export function WorkspaceLayout({
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <dialog
+          id="mobile-navigation-drawer"
           open
+          onKeyDown={(e) => handleModalFocusTrapKeyDown(e, drawerPanelRef.current)}
           className="fixed inset-0 z-50 m-0 flex h-full w-full max-w-none bg-transparent p-0 lg:hidden"
           aria-modal="true"
           aria-label="Mobile Navigation"
         >
           <button
             type="button"
+            tabIndex={-1}
             aria-label="Close navigation menu backdrop"
             className="fixed inset-0 bg-[#102A43]/40 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative z-10 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl">
+          <div ref={drawerPanelRef} className="relative z-10 flex w-72 max-w-[85vw] flex-col bg-white shadow-xl">
             <div className="flex h-16 items-center justify-between border-b border-slate-200 px-5">
               <Logo onClick={() => handleNav('landing')} />
               <button
@@ -217,6 +222,7 @@ export function WorkspaceLayout({
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Open navigation menu"
               aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation-drawer"
               className="rounded-lg p-2 text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] lg:hidden"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />

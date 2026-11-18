@@ -8,19 +8,18 @@ interface AqiStatusBadgeProps {
   standardLabel?: string;
 }
 
+const CATEGORY_ICON_MAP: Record<AqiCategory, typeof CheckCircle2> = {
+  Good: CheckCircle2,
+  Satisfactory: Wind,
+  Moderate: Info,
+  Poor: AlertTriangle,
+  'Very Poor': ShieldAlert,
+  Severe: ShieldAlert,
+};
+
 export function AqiStatusBadge({ category, aqi, standardLabel = 'CPCB NAQI' }: AqiStatusBadgeProps) {
   const meta = getCpcbCategoryMeta(category);
-
-  const Icon =
-    category === 'Good'
-      ? CheckCircle2
-      : category === 'Satisfactory'
-        ? Wind
-        : category === 'Moderate'
-          ? Info
-          : category === 'Poor'
-            ? AlertTriangle
-            : ShieldAlert;
+  const Icon = CATEGORY_ICON_MAP[category];
 
   return (
     <output

@@ -79,6 +79,16 @@ function buildFallbackAssistantReply(
   const isHigh = (aqi ?? 120) > 200;
   const isModerate = (aqi ?? 120) > 100 && (aqi ?? 120) <= 200;
 
+  let whatAction =
+    'Normal outdoor activity is generally suitable; maintain good indoor kitchen exhaust and low-emission commuting habits.';
+  if (isHigh) {
+    whatAction =
+      'Keep children, older adults, and sensitive members indoors; avoid strenuous outdoor activity and run HEPA filtration or damp-clean dust.';
+  } else if (isModerate) {
+    whatAction =
+      'Keep outdoor time moderate, avoid heavy traffic corridors during peak hours, and ventilate only briefly when traffic eases.';
+  }
+
   return {
     summary:
       note ??
@@ -102,11 +112,7 @@ function buildFallbackAssistantReply(
       'Indoor PM2.5 levels vary with building airtightness, cooking exhaust use, and HEPA filtration.',
     ],
     recommendation: {
-      what: isHigh
-        ? 'Keep children, older adults, and sensitive members indoors; avoid strenuous outdoor activity and run HEPA filtration or damp-clean dust.'
-        : isModerate
-          ? 'Keep outdoor time moderate, avoid heavy traffic corridors during peak hours, and ventilate only briefly when traffic eases.'
-          : 'Normal outdoor activity is generally suitable; maintain good indoor kitchen exhaust and low-emission commuting habits.',
+      what: whatAction,
       why: isHigh
         ? 'Fine particulates (PM2.5) bypass upper airway defenses and elevate short-term respiratory irritation risk.'
         : 'Proactive timing reduces cumulative exposure near congested roads without unnecessary indoor isolation.',

@@ -16,91 +16,21 @@ import {
   getInitialLifestyleAlternatives,
 } from '../lib/recommendations.ts';
 import { calculateCarbonImpact, type CarbonCalculatorInput } from '../lib/impact.ts';
-import { PersistedStateSchema } from '../lib/validation.ts';
+import {
+  addUniqueItem,
+  clearPersistedState,
+  DEFAULT_ALERT_PREFS,
+  DEFAULT_CALC_INPUT,
+  DEFAULT_PROFILE,
+  loadPersistedState,
+  parseHashPage,
+  savePersistedState,
+  toggleListItem,
+  type RoutinePeriod,
+} from '../lib/storage.ts';
 
-const STORAGE_KEY = 'airwise_ai_state_v1';
-
-export const DEFAULT_PROFILE: FamilyProfile = {
-  householdSize: 3,
-  groups: ['adults', 'children', 'dailyCommuters'],
-  preferredStandard: 'CPCB',
-  hasPurifier: true,
-  gridRegion: 'INDIA',
-};
-
-export const DEFAULT_CALC_INPUT: CarbonCalculatorInput = {
-  carKmReplacedByTransitPerWeek: 30,
-  carKmCarpoolPerWeek: 16,
-  carKmReplacedByWalkCyclePerWeek: 8,
-  electricitySavedKwhPerWeek: 10,
-  ledBulbsReplacedCount: 4,
-  wasteReducedKgPerWeek: 3,
-  gridRegion: 'INDIA',
-  householdSize: 3,
-};
-
-export const DEFAULT_ALERT_PREFS: AlertPreferences = {
-  severeAqi: true,
-  risingPm25: true,
-  forecastAlerts: true,
-  ventilationWindows: true,
-  filterMaintenance: true,
-  sustainabilityGoals: true,
-};
-
-export type RoutinePeriod = 'Morning' | 'Afternoon' | 'Evening' | 'Night';
-
-interface PersistedState {
-  locationId?: string;
-  customLocation?: CityLocation;
-  profile?: FamilyProfile;
-  completedTaskIds?: string[];
-  completedRoutinePeriods?: RoutinePeriod[];
-  adoptedHabitIds?: string[];
-  savedGreeneryTipIds?: string[];
-  joinedChallengeIds?: string[];
-  readAlertIds?: string[];
-  calcInput?: CarbonCalculatorInput;
-  alertPrefs?: AlertPreferences;
-}
-
-const VALID_PAGES: readonly PageId[] = [
-  'landing',
-  'dashboard',
-  'assistant',
-  'routine',
-  'indoor',
-  'sustainability',
-  'calculator',
-  'insights',
-  'community',
-  'notifications',
-  'settings',
-];
-
-function isPageId(value: string): value is PageId {
-  return (VALID_PAGES as readonly string[]).includes(value);
-}
-
-function parseHashPage(): PageId | null {
-  const hash = window.location.hash.replace('#', '');
-  return isPageId(hash) ? hash : null;
-}
-
-export function toggleListItem<T>(list: readonly T[], item: T): T[] {
-  return list.includes(item) ? list.filter((entry) => entry !== item) : [...list, item];
-}
-
-function loadPersistedState(): PersistedState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = PersistedStateSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : {};
-  } catch {
-    return {};
-  }
-}
+export { DEFAULT_ALERT_PREFS, DEFAULT_CALC_INPUT, DEFAULT_PROFILE, toggleListItem };
+export type { RoutinePeriod };
 
 async function requestAirQualitySnapshot(
   targetLoc: CityLocation,
@@ -136,7 +66,7 @@ export function useAirwiseState() {
   const [activePage, setActivePage] = useState<PageId>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('autostart') === '1') return 'dashboard';
-    return parseHashPage() ?? 'landing';
+    return parseHashPage(window.location.hash) ?? 'landing';
   });
 
   const [location, setLocation] = useState<CityLocation>(() => {
@@ -212,14 +142,12 @@ export function useAirwiseState() {
 
   useEffect(() => {
     const controller = executeSnapshotFetch(location, false);
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [executeSnapshotFetch, location]);
 
   useEffect(() => {
     const onHashChange = () => {
-      const next = parseHashPage();
+      const next = parseHashPage(window.location.hash);
       if (next) setActivePage(next);
     };
     window.addEventListener('hashchange', onHashChange);
@@ -227,24 +155,19 @@ export function useAirwiseState() {
   }, []);
 
   useEffect(() => {
-    try {
-      const payload: PersistedState = {
-        locationId: location.id,
-        customLocation: location,
-        profile,
-        completedTaskIds: indoorTasks.filter((t) => t.completed).map((t) => t.id),
-        completedRoutinePeriods,
-        adoptedHabitIds: alternatives.filter((a) => a.adopted).map((a) => a.id),
-        savedGreeneryTipIds,
-        joinedChallengeIds: joinedChallenges,
-        readAlertIds,
-        calcInput,
-        alertPrefs,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-    } catch {
-      // Ignore storage quota errors
-    }
+    savePersistedState({
+      locationId: location.id,
+      customLocation: location,
+      profile,
+      completedTaskIds: indoorTasks.filter((t) => t.completed).map((t) => t.id),
+      completedRoutinePeriods,
+      adoptedHabitIds: alternatives.filter((a) => a.adopted).map((a) => a.id),
+      savedGreeneryTipIds,
+      joinedChallengeIds: joinedChallenges,
+      readAlertIds,
+      calcInput,
+      alertPrefs,
+    });
   }, [
     location,
     profile,
@@ -262,17 +185,18 @@ export function useAirwiseState() {
     setActivePage(page);
     const targetHash = page === 'landing' ? '' : `#${page}`;
     if (window.location.hash !== targetHash) {
-      window.history.pushState(null, '', targetHash || window.location.pathname + window.location.search);
+      window.history.pushState(
+        null,
+        '',
+        targetHash || `${window.location.pathname}${window.location.search}`
+      );
     }
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
 
   const alerts: SmartAlert[] = useMemo(() => {
     const readSet = new Set(readAlertIds);
-    return buildSmartAlerts(snapshot).map((a) => ({
-      ...a,
-      read: readSet.has(a.id),
-    }));
+    return buildSmartAlerts(snapshot).map((a) => ({ ...a, read: readSet.has(a.id) }));
   }, [snapshot, readAlertIds]);
 
   const unreadAlertsCount = useMemo(
@@ -322,12 +246,20 @@ export function useAirwiseState() {
   }, []);
 
   const markAlertRead = useCallback((id: string) => {
-    setReadAlertIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setReadAlertIds((prev) => addUniqueItem(prev, id));
   }, []);
 
   const markAllAlertsRead = useCallback(() => {
     setReadAlertIds(alerts.map((a) => a.id));
   }, [alerts]);
+
+  const resetCalcInput = useCallback(() => {
+    setCalcInput((prev) => ({
+      ...DEFAULT_CALC_INPUT,
+      gridRegion: prev.gridRegion,
+      householdSize: prev.householdSize,
+    }));
+  }, []);
 
   const updateProfile = useCallback((next: FamilyProfile) => {
     setProfile(next);
@@ -352,7 +284,7 @@ export function useAirwiseState() {
   );
 
   const clearAllData = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    clearPersistedState();
     setLocation(DEFAULT_CITY);
     setProfile(DEFAULT_PROFILE);
     setIndoorTasks(getInitialIndoorChecklist());
@@ -392,6 +324,7 @@ export function useAirwiseState() {
     toggleSavedGreeneryTip,
     toggleJoinChallenge,
     setCalcInput,
+    resetCalcInput,
     setAlertPrefs,
     markAlertRead,
     markAllAlertsRead,

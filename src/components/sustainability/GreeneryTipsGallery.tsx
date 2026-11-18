@@ -52,19 +52,22 @@ export function GreeneryTipsGallery({
         <div
           className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5"
           role="tablist"
-          tabIndex={-1}
           aria-label="Filter greenery tips by setting"
-          onKeyDown={(e) => handleTabListKeyDown(e, TIP_FILTERS, filter, setFilter)}
         >
           {TIP_FILTERS.map((cat) => {
             const active = filter === cat;
+            const tabSlug = cat.toLowerCase().replace(/[^a-z0-9]+/g, '-');
             return (
               <button
                 key={cat}
+                id={`greenery-tab-${tabSlug}`}
                 type="button"
                 role="tab"
+                tabIndex={active ? 0 : -1}
                 aria-selected={active}
+                aria-controls="greenery-tips-panel"
                 onClick={() => setFilter(cat)}
+                onKeyDown={(e) => handleTabListKeyDown(e, TIP_FILTERS, filter, setFilter)}
                 className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
                   active ? 'bg-[#102A43] text-white' : 'text-slate-600 hover:bg-slate-100'
                 }`}
@@ -77,9 +80,10 @@ export function GreeneryTipsGallery({
       </div>
 
       <div
+        id="greenery-tips-panel"
         className="grid grid-cols-1 gap-5 md:grid-cols-2"
         role="tabpanel"
-        aria-label={`${filter} greenery tips`}
+        aria-labelledby={`greenery-tab-${filter.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
       >
         {visibleTips.map((tip) => {
           const isSaved = savedSet.has(tip.id);

@@ -28,6 +28,26 @@ export interface PollutionInsights {
   categoryDistribution: Array<{ category: AqiCategory; hours: number; color: string }>;
 }
 
+function classifyStagnationRisk(wind: number, humidity: number): 'High' | 'Moderate' | 'Low' {
+  if (wind < 6 && humidity > 65) return 'High';
+  if (wind < 11) return 'Moderate';
+  return 'Low';
+}
+
+function formatStagnationExplanation(
+  risk: 'High' | 'Moderate' | 'Low',
+  wind: number,
+  humidity: number
+): string {
+  if (risk === 'High') {
+    return `Low wind speeds (${wind} km/h) combined with elevated humidity (${humidity}%) trap urban particulates close to the ground, increasing winter smog persistence.`;
+  }
+  if (risk === 'Moderate') {
+    return `Moderate air movement (${wind} km/h) provides partial dispersion, though rush-hour emissions can still accumulate in street canyons.`;
+  }
+  return `Brisk winds (${wind} km/h) help dilute localized particulates, though upwind regional smoke can still affect readings.`;
+}
+
 export function analyzePollutionInsights(snapshot: EnvironmentalSnapshot): PollutionInsights {
   const valid = snapshot.hourly.filter(
     (h): h is HourlyPoint & { pm25: number; cpcbAqi: number } =>
@@ -63,15 +83,8 @@ export function analyzePollutionInsights(snapshot: EnvironmentalSnapshot): Pollu
 
   const wind = snapshot.weather.windSpeedKmh ?? 8;
   const humidity = snapshot.weather.humidityPercent ?? 60;
-  const stagnationRisk: 'High' | 'Moderate' | 'Low' =
-    wind < 6 && humidity > 65 ? 'High' : wind < 11 ? 'Moderate' : 'Low';
-
-  const weatherExplanation =
-    stagnationRisk === 'High'
-      ? `Low wind speeds (${wind} km/h) combined with elevated humidity (${humidity}%) trap urban particulates close to the ground, increasing winter smog persistence.`
-      : stagnationRisk === 'Moderate'
-        ? `Moderate air movement (${wind} km/h) provides partial dispersion, though rush-hour emissions can still accumulate in street canyons.`
-        : `Brisk winds (${wind} km/h) help dilute localized particulates, though upwind regional smoke can still affect readings.`;
+  const stagnationRisk = classifyStagnationRisk(wind, humidity);
+  const weatherExplanation = formatStagnationExplanation(stagnationRisk, wind, humidity);
 
   const counts: Record<AqiCategory, number> = {
     Good: 0,

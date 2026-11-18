@@ -125,7 +125,7 @@ export function LandingCapabilitiesSection({ onNavigate }: LandingCapabilitiesSe
           <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-3">
             {WORKFLOW_STEPS.map((item) => (
               <div key={item.step}>
-                <p className="font-mono text-xs font-semibold text-slate-500">{item.step}</p>
+                <p className="font-mono text-xs font-semibold text-slate-600">{item.step}</p>
                 <h3 className="mt-1 font-display text-base font-bold text-[#102A43]">{item.title}</h3>
                 <p className="mt-2 text-sm text-slate-600">{item.description}</p>
               </div>

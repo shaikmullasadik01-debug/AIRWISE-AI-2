@@ -161,6 +161,17 @@ test('All workspace pages and landing view render cleanly without NaN or undefin
     assertCleanRender(html, name);
   }
 
+  const sustainabilityHtml = pages.find(([n]) => n === 'SustainabilityPage')?.[1] ?? '';
+  assert.ok(sustainabilityHtml.includes('role="tablist"'));
+  assert.ok(sustainabilityHtml.includes('tabindex="0"') || sustainabilityHtml.includes('tabIndex="0"'));
+  assert.ok(sustainabilityHtml.includes('tabindex="-1"') || sustainabilityHtml.includes('tabIndex="-1"'));
+  assert.ok(sustainabilityHtml.includes('aria-controls='));
+  assert.ok(sustainabilityHtml.includes('aria-labelledby='));
+
+  const calculatorHtml = pages.find(([n]) => n === 'CalculatorPage')?.[1] ?? '';
+  assert.ok(calculatorHtml.includes('<caption class="sr-only">'));
+  assert.ok(calculatorHtml.includes('scope="col"'));
+
   const workspaceHtml = renderToStaticMarkup(
     createElement(
       WorkspaceLayout,
@@ -176,6 +187,7 @@ test('All workspace pages and landing view render cleanly without NaN or undefin
   assertCleanRender(workspaceHtml, 'WorkspaceLayout');
   assert.ok(workspaceHtml.includes('id="main-workspace"'));
   assert.ok(workspaceHtml.includes('aria-current="page"'));
+  assert.ok(workspaceHtml.includes('aria-controls="mobile-navigation-drawer"'));
   assert.ok(workspaceHtml.includes('Skip to workspace content'));
 });
 
@@ -212,6 +224,8 @@ test('Shared UI atoms render accessible semantic HTML', () => {
     })
   );
   assert.ok(tableHtml.includes('<table'));
+  assert.ok(tableHtml.includes('<caption class="sr-only">'));
+  assert.ok(tableHtml.includes('scope="col"'));
   assert.ok(tableHtml.includes('10:00'));
 
   const boundaryHtml = renderToStaticMarkup(

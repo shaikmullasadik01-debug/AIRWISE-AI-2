@@ -185,7 +185,7 @@ export function buildDailyForecast(
       const wxDailyIdx = wxDaily?.time?.indexOf(date) ?? -1;
       return {
         date,
-        label: idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : date.slice(5),
+        label: formatForecastDayLabel(date, idx),
         avgPm25,
         maxPm25,
         cpcbAqi: dCpcb.aqi,
@@ -198,12 +198,49 @@ export function buildDailyForecast(
     });
 }
 
+function formatForecastDayLabel(date: string, index: number): string {
+  if (index === 0) return 'Today';
+  if (index === 1) return 'Tomorrow';
+  return date.slice(5);
+}
+
 export function extractLatestVisibilityKm(wxHourly: WeatherApiPayload['hourly'] | undefined): number | null {
   const visArr = wxHourly?.visibility ?? [];
   if (visArr.length === 0) return null;
   const midIdx = Math.min(visArr.length - 1, Math.floor(visArr.length / 2));
   const visMeters = sanitizeMeasurement(visArr[midIdx], 100000);
   return visMeters !== null ? Math.round((visMeters / 1000) * 10) / 10 : null;
+}
+
+async function fetchUpstreamFeeds(
+  location: CityLocation
+): Promise<{ aqJson: AirQualityApiPayload; wxJson: WeatherApiPayload | null }> {
+  const aqUrl =
+    `https://air-quality-api.open-meteo.com/v1/air-quality` +
+    `?latitude=${location.latitude}&longitude=${location.longitude}` +
+    `&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi` +
+    `&hourly=pm10,pm2_5,us_aqi&past_days=1&forecast_days=3&timezone=auto`;
+
+  const wxUrl =
+    `https://api.open-meteo.com/v1/forecast` +
+    `?latitude=${location.latitude}&longitude=${location.longitude}` +
+    `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code` +
+    `&hourly=temperature_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min` +
+    `&past_days=1&forecast_days=3&timezone=auto`;
+
+  const [aqRes, wxRes] = await Promise.all([
+    fetch(aqUrl, { signal: AbortSignal.timeout(5500) }),
+    fetch(wxUrl, { signal: AbortSignal.timeout(5500) }),
+  ]);
+
+  if (!aqRes.ok) {
+    throw new Error(`Air quality API returned HTTP ${aqRes.status}`);
+  }
+
+  return {
+    aqJson: (await aqRes.json()) as AirQualityApiPayload,
+    wxJson: wxRes.ok ? ((await wxRes.json()) as WeatherApiPayload) : null,
+  };
 }
 
 function setCachedSnapshot(cacheKey: string, snapshot: EnvironmentalSnapshot): void {
@@ -303,30 +340,7 @@ export async function fetchLiveEnvironmentalSnapshot(
   }
 
   try {
-    const aqUrl =
-      `https://air-quality-api.open-meteo.com/v1/air-quality` +
-      `?latitude=${location.latitude}&longitude=${location.longitude}` +
-      `&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi` +
-      `&hourly=pm10,pm2_5,us_aqi&past_days=1&forecast_days=3&timezone=auto`;
-
-    const wxUrl =
-      `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${location.latitude}&longitude=${location.longitude}` +
-      `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code` +
-      `&hourly=temperature_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min` +
-      `&past_days=1&forecast_days=3&timezone=auto`;
-
-    const [aqRes, wxRes] = await Promise.all([
-      fetch(aqUrl, { signal: AbortSignal.timeout(5500) }),
-      fetch(wxUrl, { signal: AbortSignal.timeout(5500) }),
-    ]);
-
-    if (!aqRes.ok) {
-      throw new Error(`Air quality API returned HTTP ${aqRes.status}`);
-    }
-
-    const aqJson = (await aqRes.json()) as AirQualityApiPayload;
-    const wxJson = wxRes.ok ? ((await wxRes.json()) as WeatherApiPayload) : null;
+    const { aqJson, wxJson } = await fetchUpstreamFeeds(location);
 
     const pollutants = parseCurrentPollutants(aqJson.current);
     const cpcb = calculateCpcbAqi(pollutants);

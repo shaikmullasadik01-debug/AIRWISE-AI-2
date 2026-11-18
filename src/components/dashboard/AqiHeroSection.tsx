@@ -66,21 +66,21 @@ export function AqiHeroSection({ snapshot }: AqiHeroSectionProps) {
           </h2>
           <div className="mt-3 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-lg bg-[#F4F8FB] p-3">
-              <span className="block text-[11px] font-medium text-slate-500">Indian CPCB</span>
+              <span className="block text-[11px] font-medium text-slate-600">Indian CPCB</span>
               <span className="mt-1 block font-mono text-xl font-bold text-[#102A43] tabular-nums">
                 {snapshot.cpcbAqi ?? 'N/A'}
               </span>
               <span className="text-[11px] text-slate-600">{snapshot.cpcbCategory}</span>
             </div>
             <div className="rounded-lg bg-[#F4F8FB] p-3">
-              <span className="block text-[11px] font-medium text-slate-500">US EPA AQI</span>
+              <span className="block text-[11px] font-medium text-slate-600">US EPA AQI</span>
               <span className="mt-1 block font-mono text-xl font-bold text-[#102A43] tabular-nums">
                 {snapshot.usAqi ?? 'N/A'}
               </span>
               <span className="block text-[11px] leading-tight text-slate-600">{snapshot.usCategory}</span>
             </div>
             <div className="rounded-lg bg-[#F4F8FB] p-3">
-              <span className="block text-[11px] font-medium text-slate-500">WHO PM2.5</span>
+              <span className="block text-[11px] font-medium text-slate-600">WHO PM2.5</span>
               <span className="mt-1 block font-mono text-xl font-bold text-[#102A43] tabular-nums">
                 {snapshot.whoRatios.pm25Multiple !== null ? `${snapshot.whoRatios.pm25Multiple}x` : 'N/A'}
               </span>

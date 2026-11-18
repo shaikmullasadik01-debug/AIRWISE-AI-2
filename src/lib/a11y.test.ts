@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { KeyboardEvent } from 'react';
-import { getNextTabValue, handleTabListKeyDown } from './a11y.ts';
+import {
+  getNextTabValue,
+  handleModalFocusTrapKeyDown,
+  handleTabListKeyDown,
+} from './a11y.ts';
 
 const TABS = ['All', 'Transport', 'Energy', 'Greenery'] as const;
 
@@ -34,8 +38,15 @@ test('handleTabListKeyDown prevents default, calls onChange, and focuses target 
       prevented = true;
     },
     currentTarget: {
-      querySelectorAll() {
-        return fakeTabs;
+      closest(selector: string) {
+        if (selector === '[role="tablist"]') {
+          return {
+            querySelectorAll() {
+              return fakeTabs;
+            },
+          };
+        }
+        return null;
       },
     },
   } as unknown as KeyboardEvent<HTMLElement>;
@@ -47,4 +58,74 @@ test('handleTabListKeyDown prevents default, calls onChange, and focuses target 
   assert.equal(prevented, true);
   assert.equal(selected, 'Transport');
   assert.equal(focusedIndex, 1);
+});
+
+test('handleModalFocusTrapKeyDown wraps Tab from last to first and Shift+Tab from first to last', () => {
+  let focused = '';
+  const firstBtn = {
+    focus() {
+      focused = 'first';
+    },
+  } as unknown as HTMLElement;
+  const lastBtn = {
+    focus() {
+      focused = 'last';
+    },
+  } as unknown as HTMLElement;
+
+  const originalDoc = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  let activeEl: unknown = lastBtn;
+
+  Object.defineProperty(globalThis, 'document', {
+    value: {
+      get activeElement() {
+        return activeEl;
+      },
+    },
+    configurable: true,
+    writable: true,
+  });
+
+  const container = {
+    querySelectorAll() {
+      return [firstBtn, lastBtn];
+    },
+  } as unknown as HTMLElement;
+
+  try {
+    let tabPrevented = false;
+    handleModalFocusTrapKeyDown(
+      {
+        key: 'Tab',
+        shiftKey: false,
+        preventDefault() {
+          tabPrevented = true;
+        },
+      } as unknown as KeyboardEvent<HTMLElement>,
+      container
+    );
+    assert.equal(tabPrevented, true);
+    assert.equal(focused, 'first');
+
+    activeEl = firstBtn;
+    let shiftTabPrevented = false;
+    handleModalFocusTrapKeyDown(
+      {
+        key: 'Tab',
+        shiftKey: true,
+        preventDefault() {
+          shiftTabPrevented = true;
+        },
+      } as unknown as KeyboardEvent<HTMLElement>,
+      container
+    );
+    assert.equal(shiftTabPrevented, true);
+    assert.equal(focused, 'last');
+  } finally {
+    if (originalDoc) {
+      Object.defineProperty(globalThis, 'document', originalDoc);
+    } else {
+      delete (globalThis as { document?: Document }).document;
+    }
+  }
 });

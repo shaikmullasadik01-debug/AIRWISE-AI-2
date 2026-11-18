@@ -25,12 +25,9 @@ export function AirQualityMap({
     mode: MapRegionMode;
   } | null>(null);
 
+  const defaultRegionMode: MapRegionMode = currentLocation.isIndia ? 'INDIA' : 'WORLD';
   const regionMode: MapRegionMode =
-    regionOverride?.locationId === currentLocation.id
-      ? regionOverride.mode
-      : currentLocation.isIndia
-        ? 'INDIA'
-        : 'WORLD';
+    regionOverride?.locationId === currentLocation.id ? regionOverride.mode : defaultRegionMode;
 
   function setRegionMode(mode: MapRegionMode) {
     setRegionOverride({ locationId: currentLocation.id, mode });
@@ -67,36 +64,39 @@ export function AirQualityMap({
         <div
           className="flex items-center gap-1 rounded-lg bg-slate-100 p-1"
           role="tablist"
-          tabIndex={-1}
           aria-label="Map region view"
-          onKeyDown={(e) => handleTabListKeyDown(e, MAP_VIEW_MODES, regionMode, setRegionMode)}
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={regionMode === 'INDIA'}
-            onClick={() => setRegionMode('INDIA')}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
-              regionMode === 'INDIA' ? 'bg-white text-[#102A43] shadow-xs' : 'text-slate-600'
-            }`}
-          >
-            India Grid
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={regionMode === 'WORLD'}
-            onClick={() => setRegionMode('WORLD')}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
-              regionMode === 'WORLD' ? 'bg-white text-[#102A43] shadow-xs' : 'text-slate-600'
-            }`}
-          >
-            Global View
-          </button>
+          {MAP_VIEW_MODES.map((mode) => {
+            const active = regionMode === mode;
+            const label = mode === 'INDIA' ? 'India Grid' : 'Global View';
+            return (
+              <button
+                key={mode}
+                id={`map-tab-${mode}`}
+                type="button"
+                role="tab"
+                tabIndex={active ? 0 : -1}
+                aria-selected={active}
+                aria-controls="map-region-panel"
+                onClick={() => setRegionMode(mode)}
+                onKeyDown={(e) => handleTabListKeyDown(e, MAP_VIEW_MODES, regionMode, setRegionMode)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
+                  active ? 'bg-white text-[#102A43] shadow-xs' : 'text-slate-600'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="relative mt-4 h-80 w-full overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-[#F4F8FB] via-[#EAF3FA] to-[#E6F7F2]">
+      <div
+        id="map-region-panel"
+        role="tabpanel"
+        aria-labelledby={`map-tab-${regionMode}`}
+        className="relative mt-4 h-80 w-full overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-[#F4F8FB] via-[#EAF3FA] to-[#E6F7F2]"
+      >
         {/* Coordinate Graticule & Geographic Silhouette SVG */}
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full"
@@ -175,14 +175,14 @@ export function AirQualityMap({
           );
         })}
 
-        <div className="pointer-events-none absolute bottom-2.5 left-3 rounded-md border border-slate-200/80 bg-white/90 px-2.5 py-1 text-[11px] font-mono text-slate-600 tabular-nums">
+        <div className="pointer-events-none absolute bottom-2.5 left-3 rounded-md border border-slate-200/80 bg-white/95 px-2.5 py-1 text-[11px] font-mono text-slate-700 tabular-nums">
           Active Station: {currentLocation.name} ({currentLocation.latitude.toFixed(2)}°, {currentLocation.longitude.toFixed(2)}°)
         </div>
       </div>
 
       {/* Accessible Quick Hub Strip */}
       <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Quick hub selector">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">
           Hubs:
         </span>
         {quickStations.map((station) => {

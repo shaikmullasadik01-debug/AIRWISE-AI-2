@@ -145,12 +145,15 @@ export function CalculatorPage({ input, onChangeInput, onResetInput }: Calculato
             </h3>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="border-b border-slate-200 text-slate-500">
+                <caption className="sr-only">
+                  Weekly baseline vs low-emission alternative CO2e breakdown by household activity
+                </caption>
+                <thead className="border-b border-slate-200 text-slate-600">
                   <tr>
-                    <th className="py-2 pr-3 font-semibold">Category</th>
-                    <th className="py-2 px-2 text-right font-semibold">Baseline</th>
-                    <th className="py-2 px-2 text-right font-semibold">Alternative</th>
-                    <th className="py-2 pl-2 text-right font-semibold">Net Saved</th>
+                    <th scope="col" className="py-2 pr-3 font-semibold">Category</th>
+                    <th scope="col" className="py-2 px-2 text-right font-semibold">Baseline</th>
+                    <th scope="col" className="py-2 px-2 text-right font-semibold">Alternative</th>
+                    <th scope="col" className="py-2 pl-2 text-right font-semibold">Net Saved</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -158,7 +161,7 @@ export function CalculatorPage({ input, onChangeInput, onResetInput }: Calculato
                     <tr key={row.id}>
                       <td className="py-2 pr-3">
                         <div className="font-medium text-[#102A43]">{row.label}</div>
-                        <div className="text-[11px] text-slate-500">{row.factorSummary}</div>
+                        <div className="text-[11px] text-slate-600">{row.factorSummary}</div>
                       </td>
                       <td className="py-2 px-2 text-right font-mono tabular-nums">
                         {row.baselineKgPerWeek}
@@ -179,11 +182,11 @@ export function CalculatorPage({ input, onChangeInput, onResetInput }: Calculato
       </div>
 
       {/* Assumptions & Carbon vs Exposure Note */}
-      <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-2" aria-label="Methodology and Context">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="font-display text-sm font-bold text-[#102A43]">
+          <h2 className="font-display text-sm font-bold text-[#102A43]">
             Assumptions & Uncertainty Disclosure
-          </h3>
+          </h2>
           <ul className="mt-2.5 list-disc space-y-1.5 pl-4 text-xs text-slate-600">
             {result.assumptions.map((item) => (
               <li key={item}>{item}</li>
@@ -195,9 +198,9 @@ export function CalculatorPage({ input, onChangeInput, onResetInput }: Calculato
           <div className="flex items-start gap-2.5">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" aria-hidden="true" />
             <div>
-              <h3 className="font-display text-sm font-bold">
+              <h2 className="font-display text-sm font-bold">
                 Carbon Reduction vs. Personal Exposure Reduction
-              </h3>
+              </h2>
               <p className="mt-1.5 leading-relaxed text-slate-700">{result.exposureVsCarbonNote}</p>
             </div>
           </div>

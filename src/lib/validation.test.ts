@@ -149,6 +149,24 @@ test('AssistantRequestSchema & AssistantOutputSchema enforce strict structure', 
   });
   assert.equal(goodOut.success, true);
 
+  const invisibleOnlyReq = AssistantRequestSchema.safeParse({
+    question: ' \u200B\u0007\uFEFF ',
+    locationName: 'Delhi',
+    cpcbAqi: 200,
+    cpcbCategory: 'Poor',
+    usAqi: 180,
+    pm25: 90,
+    pm10: 150,
+    no2: 30,
+    o3: 40,
+    temperatureC: 22,
+    humidityPercent: 55,
+    windSpeedKmh: 7,
+    dataStatus: 'LIVE',
+    householdGroups: ['children'],
+  });
+  assert.equal(invisibleOnlyReq.success, false);
+
   const reqWithControlChars = AssistantRequestSchema.safeParse({
     question: 'Is outdoor walking safe?',
     locationName: 'New\u200BDelhi\u0007',

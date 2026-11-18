@@ -111,30 +111,33 @@ export function IndoorPage({ snapshot, tasks, onToggleTask }: IndoorPageProps) {
           />
         </div>
         <div className="sm:col-span-8">
-          <h3 className="font-display text-sm font-bold text-[#102A43]">
+          <h2 className="font-display text-sm font-bold text-[#102A43]">
             Room-by-Room Clean Air Execution
-          </h3>
+          </h2>
           <p className="mt-1 text-xs text-slate-600">
             Select a room below to review tailored filtration, ventilation, damp cleaning, and humidity guidance along with practical limitations.
           </p>
           <div
             className="mt-3 flex flex-wrap items-center gap-1.5"
             role="tablist"
-            tabIndex={-1}
             aria-label="Filter checklist by room"
-            onKeyDown={(e) =>
-              handleTabListKeyDown(e, ROOM_FILTER_TABS, selectedRoom, setSelectedRoom)
-            }
           >
             {ROOM_FILTER_TABS.map((room) => {
               const active = selectedRoom === room;
+              const slug = room.toLowerCase().replace(/[^a-z0-9]+/g, '-');
               return (
                 <button
                   key={room}
+                  id={`indoor-tab-${slug}`}
                   type="button"
                   role="tab"
+                  tabIndex={active ? 0 : -1}
                   aria-selected={active}
+                  aria-controls="indoor-tasks-panel"
                   onClick={() => setSelectedRoom(room)}
+                  onKeyDown={(e) =>
+                    handleTabListKeyDown(e, ROOM_FILTER_TABS, selectedRoom, setSelectedRoom)
+                  }
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
                     active ? 'bg-[#102A43] text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
@@ -148,7 +151,12 @@ export function IndoorPage({ snapshot, tasks, onToggleTask }: IndoorPageProps) {
       </div>
 
       {/* Room-by-Room Checklist */}
-      <div className="space-y-3" role="tabpanel" aria-label={`${selectedRoom} indoor air tasks`}>
+      <div
+        id="indoor-tasks-panel"
+        className="space-y-3"
+        role="tabpanel"
+        aria-labelledby={`indoor-tab-${selectedRoom.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+      >
         {visibleTasks.map((task) => (
           <div
             key={task.id}

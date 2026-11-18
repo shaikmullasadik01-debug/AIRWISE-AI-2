@@ -38,6 +38,32 @@ export function handleTabListKeyDown<T extends string>(
   onChange(nextValue);
 
   const nextIndex = items.indexOf(nextValue);
-  const tabButtons = event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+  const tabListRoot = event.currentTarget.closest?.('[role="tablist"]') ?? event.currentTarget;
+  const tabButtons = tabListRoot.querySelectorAll<HTMLButtonElement>('[role="tab"]');
   tabButtons[nextIndex]?.focus();
+}
+
+export function handleModalFocusTrapKeyDown(
+  event: KeyboardEvent<HTMLElement>,
+  container: HTMLElement | null
+): void {
+  if (event.key !== 'Tab' || !container) return;
+  const focusable = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  );
+  if (focusable.length === 0) return;
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first?.focus();
+  }
 }

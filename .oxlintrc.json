@@ -14,9 +14,20 @@
     "prefer-const": "error",
     "no-duplicate-imports": "error",
     "no-useless-catch": "error",
+    "no-nested-ternary": "error",
+    "no-else-return": "error",
+    "object-shorthand": "error",
+    "prefer-template": "error",
+    "curly": ["error", "multi-line"],
     "max-depth": ["error", 4],
     "unicorn/prefer-array-find": "error",
-    "unicorn/no-useless-spread": "error"
+    "unicorn/no-useless-spread": "error",
+    "jsx-a11y/anchor-is-valid": "error",
+    "jsx-a11y/heading-has-content": "error",
+    "jsx-a11y/label-has-associated-control": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-role": "error",
+    "jsx-a11y/role-has-required-aria-props": "error"
   },
   "ignorePatterns": ["dist/**", "node_modules/**"]
 }

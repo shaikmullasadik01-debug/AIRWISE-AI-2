@@ -209,75 +209,71 @@ export interface AqiVisualMeta {
   accessibleSymbol: string;
 }
 
+const CPCB_CATEGORY_META: Record<AqiCategory, AqiVisualMeta> = {
+  Good: {
+    category: 'Good',
+    rangeLabel: '0–50',
+    hexColor: '#20C997',
+    bgTintClass: 'bg-emerald-50',
+    textClass: 'text-emerald-800',
+    borderClass: 'border-emerald-200',
+    healthSummary: 'Minimal impact; suitable for normal outdoor activities.',
+    accessibleSymbol: 'Level 1 / Optimal',
+  },
+  Satisfactory: {
+    category: 'Satisfactory',
+    rangeLabel: '51–100',
+    hexColor: '#38BDF8',
+    bgTintClass: 'bg-sky-50',
+    textClass: 'text-sky-800',
+    borderClass: 'border-sky-200',
+    healthSummary: 'Minor breathing discomfort possible for unusually sensitive people.',
+    accessibleSymbol: 'Level 2 / Acceptable',
+  },
+  Moderate: {
+    category: 'Moderate',
+    rangeLabel: '101–200',
+    hexColor: '#F59E0B',
+    bgTintClass: 'bg-amber-50',
+    textClass: 'text-amber-900',
+    borderClass: 'border-amber-200',
+    healthSummary: 'Breathing discomfort possible for children, older adults, and sensitive groups.',
+    accessibleSymbol: 'Level 3 / Caution',
+  },
+  Poor: {
+    category: 'Poor',
+    rangeLabel: '201–300',
+    hexColor: '#EA580C',
+    bgTintClass: 'bg-orange-50',
+    textClass: 'text-orange-900',
+    borderClass: 'border-orange-200',
+    healthSummary: 'Breathing discomfort on prolonged exposure; shift intense exercise indoors.',
+    accessibleSymbol: 'Level 4 / Unhealthy',
+  },
+  'Very Poor': {
+    category: 'Very Poor',
+    rangeLabel: '301–400',
+    hexColor: '#EF4444',
+    bgTintClass: 'bg-red-50',
+    textClass: 'text-red-900',
+    borderClass: 'border-red-200',
+    healthSummary: 'High risk of respiratory irritation on prolonged exposure; protect indoors.',
+    accessibleSymbol: 'Level 5 / High Alert',
+  },
+  Severe: {
+    category: 'Severe',
+    rangeLabel: '401–500',
+    hexColor: '#991B1B',
+    bgTintClass: 'bg-rose-100',
+    textClass: 'text-rose-950',
+    borderClass: 'border-rose-300',
+    healthSummary: 'Severe air episode; avoid outdoor exertion and seal/filter indoor spaces.',
+    accessibleSymbol: 'Level 6 / Severe Emergency',
+  },
+};
+
 export function getCpcbCategoryMeta(category: AqiCategory): AqiVisualMeta {
-  switch (category) {
-    case 'Good':
-      return {
-        category: 'Good',
-        rangeLabel: '0–50',
-        hexColor: '#20C997',
-        bgTintClass: 'bg-emerald-50',
-        textClass: 'text-emerald-800',
-        borderClass: 'border-emerald-200',
-        healthSummary: 'Minimal impact; suitable for normal outdoor activities.',
-        accessibleSymbol: 'Level 1 / Optimal',
-      };
-    case 'Satisfactory':
-      return {
-        category: 'Satisfactory',
-        rangeLabel: '51–100',
-        hexColor: '#38BDF8',
-        bgTintClass: 'bg-sky-50',
-        textClass: 'text-sky-800',
-        borderClass: 'border-sky-200',
-        healthSummary: 'Minor breathing discomfort possible for unusually sensitive people.',
-        accessibleSymbol: 'Level 2 / Acceptable',
-      };
-    case 'Moderate':
-      return {
-        category: 'Moderate',
-        rangeLabel: '101–200',
-        hexColor: '#F59E0B',
-        bgTintClass: 'bg-amber-50',
-        textClass: 'text-amber-900',
-        borderClass: 'border-amber-200',
-        healthSummary: 'Breathing discomfort possible for children, older adults, and sensitive groups.',
-        accessibleSymbol: 'Level 3 / Caution',
-      };
-    case 'Poor':
-      return {
-        category: 'Poor',
-        rangeLabel: '201–300',
-        hexColor: '#EA580C',
-        bgTintClass: 'bg-orange-50',
-        textClass: 'text-orange-900',
-        borderClass: 'border-orange-200',
-        healthSummary: 'Breathing discomfort on prolonged exposure; shift intense exercise indoors.',
-        accessibleSymbol: 'Level 4 / Unhealthy',
-      };
-    case 'Very Poor':
-      return {
-        category: 'Very Poor',
-        rangeLabel: '301–400',
-        hexColor: '#EF4444',
-        bgTintClass: 'bg-red-50',
-        textClass: 'text-red-900',
-        borderClass: 'border-red-200',
-        healthSummary: 'High risk of respiratory irritation on prolonged exposure; protect indoors.',
-        accessibleSymbol: 'Level 5 / High Alert',
-      };
-    case 'Severe':
-      return {
-        category: 'Severe',
-        rangeLabel: '401–500',
-        hexColor: '#991B1B',
-        bgTintClass: 'bg-rose-100',
-        textClass: 'text-rose-950',
-        borderClass: 'border-rose-300',
-        healthSummary: 'Severe air episode; avoid outdoor exertion and seal/filter indoor spaces.',
-        accessibleSymbol: 'Level 6 / Severe Emergency',
-      };
-  }
+  return CPCB_CATEGORY_META[category];
 }
 
 export function sanitizeMeasurement(value: unknown, maxBound = 5000): number | null {
