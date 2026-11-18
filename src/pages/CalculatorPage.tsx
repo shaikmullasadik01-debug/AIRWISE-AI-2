@@ -1,0 +1,363 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Info, RotateCcw } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { calculateCarbonImpact, type CarbonCalculatorInput } from '../lib/impact.ts';
+import { parseGridRegion } from '../lib/location.ts';
+import { CarbonReductionGallery } from '../components/sustainability/CarbonReductionGallery.tsx';
+
+interface CalculatorPageProps {
+  input: CarbonCalculatorInput;
+  onChangeInput: (next: CarbonCalculatorInput) => void;
+  onResetInput: () => void;
+}
+
+const SHORT_NAMES: Record<string, string> = {
+  transit: 'Transit',
+  carpool: 'Carpool',
+  active: 'Walk/Cycle',
+  electricity: 'Power',
+  led: 'LEDs',
+  waste: 'Waste',
+};
+
+export function CalculatorPage({ input, onChangeInput, onResetInput }: CalculatorPageProps) {
+  const result = useMemo(() => calculateCarbonImpact(input), [input]);
+  const [appliedBanner, setAppliedBanner] = useState<string | null>(null);
+  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    };
+  }, []);
+
+  function updateField<K extends keyof CarbonCalculatorInput>(key: K, value: CarbonCalculatorInput[K]) {
+    onChangeInput({ ...input, [key]: value });
+  }
+
+  function applyScenarioPatch(title: string, patch: Partial<CarbonCalculatorInput>) {
+    onChangeInput({ ...input, ...patch });
+    setAppliedBanner(`Applied scenario: ${title}. Recalculated weekly and annual CO2e savings above.`);
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    bannerTimerRef.current = setTimeout(() => setAppliedBanner(null), 4000);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  const chartData = useMemo(
+    () =>
+      result.breakdown.map((b) => ({
+        name: SHORT_NAMES[b.id] ?? b.label,
+        Baseline: b.baselineKgPerWeek,
+        Alternative: b.alternativeKgPerWeek,
+      })),
+    [result.breakdown]
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Top KPI Grid */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Calculated CO2e Savings">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-semibold text-slate-500">Daily Savings</p>
+          <p className="mt-1 font-mono text-2xl font-bold text-[#102A43] tabular-nums">
+            {result.dailySavingsKg.toFixed(2)} kg
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">CO2e / day</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-semibold text-slate-500">Weekly Savings</p>
+          <p className="mt-1 font-mono text-2xl font-bold text-[#20C997] tabular-nums">
+            {result.weeklySavingsKg.toFixed(2)} kg
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Baseline {result.weeklyBaselineKg} − Alt {result.weeklyAlternativeKg}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-semibold text-slate-500">Monthly Savings</p>
+          <p className="mt-1 font-mono text-2xl font-bold text-[#102A43] tabular-nums">
+            {result.monthlySavingsKg.toFixed(1)} kg
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">30-day projection</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-semibold text-slate-500">Annual Household Impact</p>
+          <p className="mt-1 font-mono text-2xl font-bold text-[#102A43] tabular-nums">
+            {result.annualSavingsKg.toFixed(0)} kg
+          </p>
+          <p className="mt-1 text-[11px] text-slate-500">
+            {result.perPersonAnnualSavingsKg.toFixed(0)} kg/member · {result.community100HomesAnnualTonnes.toFixed(1)} t per 100 homes
+          </p>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Interactive Controls */}
+        <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 lg:col-span-5" aria-label="Habit Inputs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h2 className="font-display text-base font-bold text-[#102A43]">
+              Weekly Habit Inputs
+            </h2>
+            <button
+              type="button"
+              onClick={onResetInput}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#102A43]"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Reset</span>
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-4 text-sm">
+            <div>
+              <label htmlFor="calc-transit" className="flex justify-between font-medium text-[#102A43]">
+                <span>Car km replaced by public transit / week</span>
+                <span className="font-mono text-slate-600 tabular-nums">{input.carKmReplacedByTransitPerWeek} km</span>
+              </label>
+              <input
+                id="calc-transit"
+                type="range"
+                min={0}
+                max={250}
+                step={2}
+                value={input.carKmReplacedByTransitPerWeek}
+                onChange={(e) => updateField('carKmReplacedByTransitPerWeek', Number(e.target.value))}
+                className="mt-1.5 w-full accent-[#102A43]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="calc-carpool" className="flex justify-between font-medium text-[#102A43]">
+                <span>Solo driving shifted to carpool / week</span>
+                <span className="font-mono text-slate-600 tabular-nums">{input.carKmCarpoolPerWeek} km</span>
+              </label>
+              <input
+                id="calc-carpool"
+                type="range"
+                min={0}
+                max={200}
+                step={2}
+                value={input.carKmCarpoolPerWeek}
+                onChange={(e) => updateField('carKmCarpoolPerWeek', Number(e.target.value))}
+                className="mt-1.5 w-full accent-[#102A43]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="calc-active" className="flex justify-between font-medium text-[#102A43]">
+                <span>Car km replaced by walking/cycling / week</span>
+                <span className="font-mono text-slate-600 tabular-nums">{input.carKmReplacedByWalkCyclePerWeek} km</span>
+              </label>
+              <input
+                id="calc-active"
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={input.carKmReplacedByWalkCyclePerWeek}
+                onChange={(e) => updateField('carKmReplacedByWalkCyclePerWeek', Number(e.target.value))}
+                className="mt-1.5 w-full accent-[#20C997]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="calc-kwh" className="flex justify-between font-medium text-[#102A43]">
+                <span>Electricity consumption reduced / week</span>
+                <span className="font-mono text-slate-600 tabular-nums">{input.electricitySavedKwhPerWeek} kWh</span>
+              </label>
+              <input
+                id="calc-kwh"
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={input.electricitySavedKwhPerWeek}
+                onChange={(e) => updateField('electricitySavedKwhPerWeek', Number(e.target.value))}
+                className="mt-1.5 w-full accent-[#38BDF8]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="calc-led" className="block text-xs font-semibold text-slate-600">
+                  LED bulbs upgraded
+                </label>
+                <input
+                  id="calc-led"
+                  type="number"
+                  min={0}
+                  max={200}
+                  value={input.ledBulbsReplacedCount}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    updateField('ledBulbsReplacedCount', Number.isFinite(val) ? Math.max(0, Math.min(200, val)) : 0);
+                  }}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-[#102A43]"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="calc-waste" className="block text-xs font-semibold text-slate-600">
+                  Waste reduced (kg/wk)
+                </label>
+                <input
+                  id="calc-waste"
+                  type="number"
+                  min={0}
+                  max={500}
+                  value={input.wasteReducedKgPerWeek}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    updateField('wasteReducedKgPerWeek', Number.isFinite(val) ? Math.max(0, Math.min(500, val)) : 0);
+                  }}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-[#102A43]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+              <div>
+                <label htmlFor="calc-region" className="block text-xs font-semibold text-slate-600">
+                  Grid Emission Factor
+                </label>
+                <select
+                  id="calc-region"
+                  value={input.gridRegion}
+                  onChange={(e) => updateField('gridRegion', parseGridRegion(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-medium text-[#102A43]"
+                >
+                  <option value="INDIA">India CEA (0.716 kg/kWh)</option>
+                  <option value="GLOBAL">IEA Global (0.475 kg/kWh)</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="calc-household" className="block text-xs font-semibold text-slate-600">
+                  Household Members
+                </label>
+                <input
+                  id="calc-household"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={input.householdSize}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    updateField('householdSize', Number.isFinite(val) ? Math.max(1, Math.min(20, Math.round(val))) : 1);
+                  }}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-[#102A43]"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Chart & Methodology */}
+        <section className="space-y-5 lg:col-span-7">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+            <h2 className="font-display text-base font-bold text-[#102A43]">
+              Baseline vs. Low-Emission Alternative (Weekly kg CO2e)
+            </h2>
+            <p className="text-xs text-slate-500">
+              Formula: Estimated CO2e Savings = Baseline Emissions − Alternative Emissions (±{result.uncertaintyRangePercent}% uncertainty band)
+            </p>
+            <div className="mt-4 h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 12, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="name" interval={0} tick={{ fontSize: 11, fill: '#475569' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#475569' }} unit=" kg" />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Bar dataKey="Baseline" fill="#94A3B8" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Alternative" fill="#20C997" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Breakdown Table */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h3 className="font-display text-sm font-bold text-[#102A43]">
+              Transparent Factor Breakdown (Weekly kg CO2e)
+            </h3>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-200 text-slate-500">
+                  <tr>
+                    <th className="py-2 pr-3 font-semibold">Category</th>
+                    <th className="py-2 px-2 text-right font-semibold">Baseline</th>
+                    <th className="py-2 px-2 text-right font-semibold">Alternative</th>
+                    <th className="py-2 pl-2 text-right font-semibold">Net Saved</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {result.breakdown.map((row) => (
+                    <tr key={row.id}>
+                      <td className="py-2 pr-3">
+                        <div className="font-medium text-[#102A43]">{row.label}</div>
+                        <div className="text-[11px] text-slate-500">{row.factorSummary}</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">{row.baselineKgPerWeek}</td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">{row.alternativeKgPerWeek}</td>
+                      <td className="py-2 pl-2 text-right font-mono font-semibold text-[#20C997] tabular-nums">
+                        {row.savingsKgPerWeek}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Assumptions & Carbon vs Exposure Note */}
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <h3 className="font-display text-sm font-bold text-[#102A43]">
+            Assumptions & Uncertainty Disclosure
+          </h3>
+          <ul className="mt-2.5 list-disc space-y-1.5 pl-4 text-xs text-slate-600">
+            {result.assumptions.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-5 text-xs text-[#102A43]">
+          <div className="flex items-start gap-2.5">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" aria-hidden="true" />
+            <div>
+              <h3 className="font-display text-sm font-bold">
+                Carbon Reduction vs. Personal Exposure Reduction
+              </h3>
+              <p className="mt-1.5 leading-relaxed text-slate-700">{result.exposureVsCarbonNote}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {appliedBanner && (
+        <output className="block rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-900">
+          {appliedBanner}
+        </output>
+      )}
+
+      <CarbonReductionGallery
+        heading="Visual Actions to Reduce Household Carbon Emissions"
+        subtitle="Select any pictured practice below to load its typical weekly activity shift into your calculator."
+        actionLabel="Apply Action Values"
+        onSelectAction={(action) => applyScenarioPatch(action.title, action.presetPatch)}
+      />
+    </div>
+  );
+}

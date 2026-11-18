@@ -1,0 +1,78 @@
+import type { IndoorRoomTask } from '../types/airwise.ts';
+
+export function getInitialIndoorChecklist(): IndoorRoomTask[] {
+  return [
+    {
+      id: 'bed-1',
+      room: 'Bedroom',
+      title: 'Run true-HEPA purifier or seal drafty window gaps overnight',
+      guidance: 'Close bedroom doors and windows during high-AQI nights; place purifier 30–50 cm from walls.',
+      whyItMatters: 'You spend ~33% of your day sleeping in one room; continuous overnight filtration lowers cumulative PM2.5 dose.',
+      limitation: 'HEPA filters trap particles (PM2.5/allergens) but do not remove CO2 or gaseous VOCs without activated carbon + fresh air.',
+      completed: false,
+    },
+    {
+      id: 'bed-2',
+      room: 'Bedroom',
+      title: 'Wash bedding weekly & damp-wipe bedside surfaces',
+      guidance: 'Avoid shaking sheets indoors; wipe headboards and floors with a damp microfiber cloth.',
+      whyItMatters: 'Reduces resuspended coarse dust (PM10) and settled allergens without aerosolizing particles.',
+      limitation: 'Dust control does not address outdoor fine smoke entering through unsealed vents.',
+      completed: false,
+    },
+    {
+      id: 'liv-1',
+      room: 'Living room',
+      title: 'Eliminate indoor incense, scented candles, and tobacco smoke',
+      guidance: 'Switch to zero-combustion fragrance-free habits indoors, especially during winter smog.',
+      whyItMatters: 'A single burning incense stick or candle can spike indoor PM2.5 above severe outdoor smog levels in minutes.',
+      limitation: 'Eliminating combustion prevents new spikes but does not clean existing outdoor PM2.5 infiltration.',
+      completed: false,
+    },
+    {
+      id: 'liv-2',
+      room: 'Living room',
+      title: 'Cross-ventilate only when outdoor AQI <= 100 (or PM2.5 < 35 µg/m³)',
+      guidance: 'Open opposite windows for 15–20 min during midday cleaner air windows; close before evening traffic.',
+      whyItMatters: 'Prevents indoor CO2 buildup while avoiding letting heavy outdoor smog inside.',
+      limitation: 'In prolonged Severe AQI episodes (>300), un-filtered ventilation brings in hazardous particulates.',
+      completed: false,
+    },
+    {
+      id: 'kit-1',
+      room: 'Kitchen',
+      title: 'Run externally vented range hood before & 15 min after cooking',
+      guidance: 'Use back burners under the hood, cover pans while boiling/frying, and avoid charring oils.',
+      whyItMatters: 'High-heat frying and gas combustion produce intense indoor PM2.5 and NO2 peaks.',
+      limitation: 'Recirculating hoods without external ducts only trap grease and fail to remove NO2 or ultrafine particles.',
+      completed: false,
+    },
+    {
+      id: 'kit-2',
+      room: 'Kitchen',
+      title: 'Keep indoor humidity between 40% and 55% to prevent mold',
+      guidance: 'Fix leaking pipes promptly, wipe condensation, and vent steam outdoors.',
+      whyItMatters: 'Excess humidity (>60%) promotes mold spores and dust mites; overly dry air (<30%) irritates airways.',
+      limitation: 'Dehumidification prevents biological growth but does not filter combustion soot.',
+      completed: false,
+    },
+    {
+      id: 'kid-1',
+      room: "Children's room",
+      title: 'Prioritize clean-air zone & soft-toy dust control',
+      guidance: 'Store plush toys in closed bins, wet-mop floors daily during high smog, and inspect HVAC/purifier pre-filters monthly.',
+      whyItMatters: 'Children breathe faster per kg of body weight than adults and have developing lungs.',
+      limitation: 'Indoor measures protect home hours only; coordinate with school indoor air practices too.',
+      completed: false,
+    },
+    {
+      id: 'wrk-1',
+      room: 'Workspace',
+      title: 'Schedule HVAC/purifier filter inspection & avoid ozone-generating devices',
+      guidance: 'Vacuum washable pre-filters every 2 weeks, replace HEPA cartridges per manufacturer hours, and never use ionizers/ozone purifiers.',
+      whyItMatters: 'Clogged filters drop Clean Air Delivery Rate (CADR), while ozone generators create lung-irritating ozone.',
+      limitation: 'Filter replacement intervals shorten during heavy winter smog seasons.',
+      completed: false,
+    },
+  ];
+}
