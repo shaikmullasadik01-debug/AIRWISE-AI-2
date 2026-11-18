@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react';
 import { Globe2 } from 'lucide-react';
 import type { CityLocation } from '../types/airwise.ts';
 import { PRESET_CITIES } from '../data/presets.ts';
+import { handleTabListKeyDown } from '../lib/a11y.ts';
 import { getMapStationsForMode, type MapRegionMode } from '../lib/map.ts';
+
+const MAP_VIEW_MODES: readonly MapRegionMode[] = ['INDIA', 'WORLD'];
 
 interface AirQualityMapProps {
   currentLocation: CityLocation;
@@ -61,13 +64,19 @@ export function AirQualityMap({
           </p>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1" role="tablist" aria-label="Map region view">
+        <div
+          className="flex items-center gap-1 rounded-lg bg-slate-100 p-1"
+          role="tablist"
+          tabIndex={-1}
+          aria-label="Map region view"
+          onKeyDown={(e) => handleTabListKeyDown(e, MAP_VIEW_MODES, regionMode, setRegionMode)}
+        >
           <button
             type="button"
             role="tab"
             aria-selected={regionMode === 'INDIA'}
             onClick={() => setRegionMode('INDIA')}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
               regionMode === 'INDIA' ? 'bg-white text-[#102A43] shadow-xs' : 'text-slate-600'
             }`}
           >
@@ -78,7 +87,7 @@ export function AirQualityMap({
             role="tab"
             aria-selected={regionMode === 'WORLD'}
             onClick={() => setRegionMode('WORLD')}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
               regionMode === 'WORLD' ? 'bg-white text-[#102A43] shadow-xs' : 'text-slate-600'
             }`}
           >
@@ -184,7 +193,7 @@ export function AirQualityMap({
               type="button"
               onClick={() => onSelectLocation(station)}
               aria-pressed={isActive}
-              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] ${
                 isActive
                   ? 'border-[#102A43] bg-[#102A43] text-white'
                   : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-[#38BDF8] hover:bg-white'

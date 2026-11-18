@@ -12,6 +12,13 @@ interface NotificationsPageProps {
   onNavigate: (page: PageId) => void;
 }
 
+const SEVERITY_STYLE_MAP: Record<SmartAlert['severity'], string> = {
+  Critical: 'bg-red-50 text-red-900 border-red-200',
+  Warning: 'bg-amber-50 text-amber-900 border-amber-200',
+  Advisory: 'bg-sky-50 text-sky-900 border-sky-200',
+  Info: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+};
+
 export function NotificationsPage({
   alerts,
   preferences,
@@ -84,9 +91,9 @@ export function NotificationsPage({
             <button
               type="button"
               onClick={onMarkAllRead}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#102A43] hover:underline"
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold text-[#102A43] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
             >
-              <CheckCheck className="h-4 w-4 text-[#20C997]" aria-hidden="true" />
+              <CheckCheck className="h-4 w-4 text-[#0F766E]" aria-hidden="true" />
               <span>Mark All Read</span>
             </button>
           )}
@@ -98,14 +105,7 @@ export function NotificationsPage({
           </div>
         ) : (
           enabledAlerts.map((alert) => {
-            const sevStyle =
-              alert.severity === 'Critical'
-                ? 'bg-red-50 text-red-900 border-red-200'
-                : alert.severity === 'Warning'
-                  ? 'bg-amber-50 text-amber-900 border-amber-200'
-                  : alert.severity === 'Advisory'
-                    ? 'bg-sky-50 text-sky-900 border-sky-200'
-                    : 'bg-emerald-50 text-emerald-900 border-emerald-200';
+            const sevStyle = SEVERITY_STYLE_MAP[alert.severity];
 
             return (
               <article
@@ -130,7 +130,7 @@ export function NotificationsPage({
                   <button
                     type="button"
                     onClick={() => onNavigate(alert.targetPage)}
-                    className="rounded-lg bg-[#102A43] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1a3f63]"
+                    className="rounded-lg bg-[#102A43] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1a3f63] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
                   >
                     {alert.actionLabel}
                   </button>
@@ -138,7 +138,7 @@ export function NotificationsPage({
                     <button
                       type="button"
                       onClick={() => onMarkRead(alert.id)}
-                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white"
+                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
                     >
                       Mark Read
                     </button>
@@ -153,7 +153,7 @@ export function NotificationsPage({
       {/* Alert Configuration */}
       <section className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 lg:col-span-5" aria-label="Notification Rules">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-          <SlidersHorizontal className="h-4 w-4 text-[#20C997]" aria-hidden="true" />
+          <SlidersHorizontal className="h-4 w-4 text-[#0F766E]" aria-hidden="true" />
           <h2 className="font-display text-base font-bold text-[#102A43]">
             Configurable Alert Rules
           </h2>

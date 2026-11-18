@@ -87,6 +87,10 @@ function parseHashPage(): PageId | null {
   return isPageId(hash) ? hash : null;
 }
 
+export function toggleListItem<T>(list: readonly T[], item: T): T[] {
+  return list.includes(item) ? list.filter((entry) => entry !== item) : [...list, item];
+}
+
 function loadPersistedState(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -180,30 +184,38 @@ export function useAirwiseState() {
 
   const fetchControllerRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    fetchControllerRef.current?.abort();
-    const controller = new AbortController();
-    fetchControllerRef.current = controller;
+  const executeSnapshotFetch = useCallback(
+    (targetLocation: CityLocation, bypassCache: boolean) => {
+      fetchControllerRef.current?.abort();
+      const controller = new AbortController();
+      fetchControllerRef.current = controller;
 
-    void requestAirQualitySnapshot(location, false, controller.signal)
-      .then((nextSnapshot) => {
-        if (controller.signal.aborted) return;
-        setSnapshot(nextSnapshot);
-        setSettledLocationId(location.id);
-        setManualRefreshing(false);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        if (!controller.signal.aborted) {
-          setSettledLocationId(location.id);
+      void requestAirQualitySnapshot(targetLocation, bypassCache, controller.signal)
+        .then((nextSnapshot) => {
+          if (controller.signal.aborted) return;
+          setSnapshot(nextSnapshot);
+          setSettledLocationId(targetLocation.id);
           setManualRefreshing(false);
-        }
-      });
+        })
+        .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+          if (!controller.signal.aborted) {
+            setSettledLocationId(targetLocation.id);
+            setManualRefreshing(false);
+          }
+        });
 
+      return controller;
+    },
+    []
+  );
+
+  useEffect(() => {
+    const controller = executeSnapshotFetch(location, false);
     return () => {
       controller.abort();
     };
-  }, [location]);
+  }, [executeSnapshotFetch, location]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -281,31 +293,12 @@ export function useAirwiseState() {
   const calcResult = useMemo(() => calculateCarbonImpact(calcInput), [calcInput]);
 
   const refreshFeed = useCallback(() => {
-    fetchControllerRef.current?.abort();
-    const controller = new AbortController();
-    fetchControllerRef.current = controller;
     setManualRefreshing(true);
-
-    void requestAirQualitySnapshot(location, true, controller.signal)
-      .then((nextSnapshot) => {
-        if (controller.signal.aborted) return;
-        setSnapshot(nextSnapshot);
-        setSettledLocationId(location.id);
-        setManualRefreshing(false);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        if (!controller.signal.aborted) {
-          setSettledLocationId(location.id);
-          setManualRefreshing(false);
-        }
-      });
-  }, [location]);
+    executeSnapshotFetch(location, true);
+  }, [executeSnapshotFetch, location]);
 
   const togglePeriod = useCallback((period: RoutinePeriod) => {
-    setCompletedRoutinePeriods((prev) =>
-      prev.includes(period) ? prev.filter((p) => p !== period) : [...prev, period]
-    );
+    setCompletedRoutinePeriods((prev) => toggleListItem(prev, period));
   }, []);
 
   const toggleTask = useCallback((id: string) => {
@@ -321,15 +314,11 @@ export function useAirwiseState() {
   }, []);
 
   const toggleSavedGreeneryTip = useCallback((id: string) => {
-    setSavedGreeneryTipIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+    setSavedGreeneryTipIds((prev) => toggleListItem(prev, id));
   }, []);
 
   const toggleJoinChallenge = useCallback((id: string) => {
-    setJoinedChallenges((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setJoinedChallenges((prev) => toggleListItem(prev, id));
   }, []);
 
   const markAlertRead = useCallback((id: string) => {

@@ -158,3 +158,32 @@ test('all preset cities produce valid demo snapshots and community challenges ha
     assert.ok(chal.actionChecklist.length >= 2);
   }
 });
+
+test('buildDailyRoutine handles Moderate AQI caution and buildSmartAlerts detects rising_pm25 spikes', () => {
+  const bengaluru = PRESET_CITIES.find((c) => c.id === 'bengaluru-in') ?? PRESET_CITIES[0];
+  assert.ok(bengaluru);
+  const baseSnap = buildDemoFallbackSnapshot(bengaluru);
+  const moderateRiseSnap = {
+    ...baseSnap,
+    cpcbAqi: 155,
+    cpcbCategory: 'Moderate' as const,
+    pollutants: { ...baseSnap.pollutants, pm25: 50 },
+    weather: { ...baseSnap.weather, windSpeedKmh: 4 },
+    hourly: baseSnap.hourly.map((point) =>
+      point.isForecast ? { ...point, pm25: 85 } : point
+    ),
+  };
+
+  const slots = buildDailyRoutine(moderateRiseSnap, {
+    householdSize: 2,
+    groups: ['respiratorySensitivities', 'workFromHome'],
+    preferredStandard: 'CPCB',
+    hasPurifier: false,
+    gridRegion: 'INDIA',
+  });
+  assert.equal(slots[0]?.airSuitability, 'Caution');
+  assert.equal(slots[1]?.airSuitability, 'Caution');
+
+  const alerts = buildSmartAlerts(moderateRiseSnap);
+  assert.ok(alerts.some((a) => a.type === 'rising_pm25'));
+});

@@ -78,7 +78,29 @@ function rateLimit(maxRequests: number, windowMs: number) {
   };
 }
 
-function isAllowedOrigin(origin: string, req: Request): boolean {
+const SAFE_LOCAL_HOST_PATTERN = /^(localhost|127\.0\.0\.1)(:\d{1,5})?$/;
+const CLOUD_RUN_HOST_PATTERN = /^[a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+\.run\.app$/;
+
+function parseSafeOrigin(rawOrigin: string): URL | null {
+  try {
+    const parsed = new URL(rawOrigin);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null;
+    }
+    return parsed.origin === rawOrigin ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isTrustedPreviewHost(host: string): boolean {
+  return SAFE_LOCAL_HOST_PATTERN.test(host) || CLOUD_RUN_HOST_PATTERN.test(host);
+}
+
+export function isAllowedOrigin(origin: string, req: Request): boolean {
+  const parsedOrigin = parseSafeOrigin(origin);
+  if (!parsedOrigin) return false;
+
   const allowedOrigins = new Set<string>([
     'http://localhost:3000',
     'http://127.0.0.1:3000',
@@ -89,12 +111,14 @@ function isAllowedOrigin(origin: string, req: Request): boolean {
   if (appUrl && appUrl !== 'MY_APP_URL') {
     allowedOrigins.add(appUrl.replace(/\/$/, ''));
   }
+
   const host = req.headers.host;
-  if (host) {
+  if (host && isTrustedPreviewHost(host)) {
     allowedOrigins.add(`https://${host}`);
     allowedOrigins.add(`http://${host}`);
   }
-  return allowedOrigins.has(origin);
+
+  return allowedOrigins.has(parsedOrigin.origin) || CLOUD_RUN_HOST_PATTERN.test(parsedOrigin.hostname);
 }
 
 export function createApp() {
@@ -119,6 +143,8 @@ export function createApp() {
       res.setHeader('X-Frame-Options', 'SAMEORIGIN');
       res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
       res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
       res.setHeader('Cache-Control', 'no-store');
     } else if (isProduction) {
       res.setHeader(
@@ -156,8 +182,11 @@ export function createApp() {
     return next();
   });
 
-  // Prototype pollution guard for parsed JSON request bodies
+  // Enforce JSON Content-Type & prototype pollution guard for API writes
   app.use('/api', (req, res, next) => {
+    if (req.method === 'POST' && !req.is('application/json')) {
+      return res.status(415).json({ error: 'Content-Type must be application/json.' });
+    }
     if (req.body && typeof req.body === 'object' && hasUnsafeObjectKeys(req.body)) {
       return res.status(400).json({ error: 'Invalid object keys in request payload.' });
     }

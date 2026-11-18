@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, CheckSquare, ShieldCheck, Square, Wind } from 'lucide-react';
 import type { EnvironmentalSnapshot, IndoorRoomTask } from '../types/airwise.ts';
+import { handleTabListKeyDown } from '../lib/a11y.ts';
 import { SafeImage } from '../components/SafeImage.tsx';
 
 interface IndoorPageProps {
@@ -9,7 +10,8 @@ interface IndoorPageProps {
   onToggleTask: (id: string) => void;
 }
 
-const ROOMS: Array<IndoorRoomTask['room']> = [
+const ROOM_FILTER_TABS: ReadonlyArray<'All' | IndoorRoomTask['room']> = [
+  'All',
   'Bedroom',
   'Living room',
   'Kitchen',
@@ -34,7 +36,7 @@ export function IndoorPage({ snapshot, tasks, onToggleTask }: IndoorPageProps) {
       {/* Ventilation & Purifier Summary */}
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="rounded-xl border border-slate-200 bg-white p-6 lg:col-span-7">
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#20C997]">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#0F766E]">
             <Wind className="h-4 w-4" aria-hidden="true" />
             <span>Ventilation Decision Engine · {snapshot.location.name}</span>
           </div>
@@ -67,7 +69,7 @@ export function IndoorPage({ snapshot, tasks, onToggleTask }: IndoorPageProps) {
             <h2 className="font-display text-base font-bold text-[#102A43]">
               Home Protection Progress
             </h2>
-            <ShieldCheck className="h-5 w-5 text-[#20C997]" aria-hidden="true" />
+            <ShieldCheck className="h-5 w-5 text-[#0F766E]" aria-hidden="true" />
           </div>
           <p className="mt-3 font-mono text-4xl font-bold text-[#102A43] tabular-nums">
             {progressPct}%
@@ -115,8 +117,16 @@ export function IndoorPage({ snapshot, tasks, onToggleTask }: IndoorPageProps) {
           <p className="mt-1 text-xs text-slate-600">
             Select a room below to review tailored filtration, ventilation, damp cleaning, and humidity guidance along with practical limitations.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Filter checklist by room">
-            {(['All', ...ROOMS] as const).map((room) => {
+          <div
+            className="mt-3 flex flex-wrap items-center gap-1.5"
+            role="tablist"
+            tabIndex={-1}
+            aria-label="Filter checklist by room"
+            onKeyDown={(e) =>
+              handleTabListKeyDown(e, ROOM_FILTER_TABS, selectedRoom, setSelectedRoom)
+            }
+          >
+            {ROOM_FILTER_TABS.map((room) => {
               const active = selectedRoom === room;
               return (
                 <button
@@ -153,7 +163,7 @@ export function IndoorPage({ snapshot, tasks, onToggleTask }: IndoorPageProps) {
                 className="mt-0.5 shrink-0 text-[#102A43] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] rounded"
               >
                 {task.completed ? (
-                  <CheckSquare className="h-5 w-5 text-[#20C997]" aria-hidden="true" />
+                  <CheckSquare className="h-5 w-5 text-[#0F766E]" aria-hidden="true" />
                 ) : (
                   <Square className="h-5 w-5 text-slate-400" aria-hidden="true" />
                 )}

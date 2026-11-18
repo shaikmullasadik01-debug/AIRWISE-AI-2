@@ -13,6 +13,12 @@ interface RoutinePageProps {
   onNavigate: (page: PageId) => void;
 }
 
+const SUITABILITY_STYLE_MAP: Record<RoutineSlot['airSuitability'], string> = {
+  'Avoid Outdoor Exposure': 'bg-red-50 text-red-900 border-red-200',
+  Caution: 'bg-amber-50 text-amber-900 border-amber-200',
+  Suitable: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+};
+
 export function RoutinePage({
   snapshot,
   profile,
@@ -27,7 +33,7 @@ export function RoutinePage({
       <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <CalendarClock className="h-4 w-4 text-[#20C997]" aria-hidden="true" />
+            <CalendarClock className="h-4 w-4 text-[#0F766E]" aria-hidden="true" />
             <span>Dynamic Schedule · {snapshot.location.name}</span>
           </div>
           <h2 className="mt-1 font-display text-lg font-bold text-[#102A43]">
@@ -55,12 +61,7 @@ export function RoutinePage({
       <div className="space-y-6">
         {slots.map((slot) => {
           const isDone = completedPeriods.includes(slot.period);
-          const suitabilityStyle =
-            slot.airSuitability === 'Avoid Outdoor Exposure'
-              ? 'bg-red-50 text-red-900 border-red-200'
-              : slot.airSuitability === 'Caution'
-                ? 'bg-amber-50 text-amber-900 border-amber-200'
-                : 'bg-emerald-50 text-emerald-900 border-emerald-200';
+          const suitabilityStyle = SUITABILITY_STYLE_MAP[slot.airSuitability];
 
           return (
             <section
@@ -94,7 +95,7 @@ export function RoutinePage({
                     {isDone ? (
                       <CheckCircle2 className="h-4 w-4 text-[#20C997]" aria-hidden="true" />
                     ) : (
-                      <Circle className="h-4 w-4 text-slate-400" aria-hidden="true" />
+                      <Circle className="h-4 w-4 text-slate-500" aria-hidden="true" />
                     )}
                     <span>{isDone ? 'Completed' : 'Mark Done'}</span>
                   </button>

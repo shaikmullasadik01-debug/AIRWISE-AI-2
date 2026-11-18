@@ -1,7 +1,61 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchLiveEnvironmentalSnapshot, searchLocations } from './envData.ts';
+import {
+  buildDailyForecast,
+  clearSnapshotCacheForTests,
+  extractLatestVisibilityKm,
+  fetchLiveEnvironmentalSnapshot,
+  parseCurrentPollutants,
+  searchLocations,
+  weatherCodeToSummary,
+} from './envData.ts';
 import { DEFAULT_CITY } from '../src/data/presets.ts';
+
+test('weatherCodeToSummary, parseCurrentPollutants, extractLatestVisibilityKm, and buildDailyForecast handle edge cases', () => {
+  assert.equal(weatherCodeToSummary('invalid'), 'Observed conditions');
+  assert.equal(weatherCodeToSummary(0), 'Clear sky');
+  assert.equal(weatherCodeToSummary(2), 'Partly cloudy');
+  assert.equal(weatherCodeToSummary(45), 'Fog or mist');
+  assert.equal(weatherCodeToSummary(61), 'Rain / drizzle');
+  assert.equal(weatherCodeToSummary(75), 'Snow');
+  assert.equal(weatherCodeToSummary(81), 'Rain showers');
+  assert.equal(weatherCodeToSummary(95), 'Thunderstorm');
+  assert.equal(weatherCodeToSummary(88), 'Mixed sky');
+
+  const pollutants = parseCurrentPollutants({
+    pm2_5: 55.44,
+    pm10: -10,
+    carbon_monoxide: 1450,
+    nitrogen_dioxide: 30,
+    sulphur_dioxide: 12,
+    ozone: 48,
+  });
+  assert.equal(pollutants.pm25, 55.4);
+  assert.equal(pollutants.pm10, null);
+  assert.equal(pollutants.co, 1.45);
+
+  assert.equal(extractLatestVisibilityKm(undefined), null);
+  assert.equal(extractLatestVisibilityKm({ visibility: [4000, 8500, 12000] }), 8.5);
+
+  const daily = buildDailyForecast(
+    {
+      time: ['2099-05-01T06:00', '2099-05-01T12:00', '2099-05-02T12:00'],
+      pm2_5: [40, 80, 30],
+    },
+    {
+      time: ['2099-05-01', '2099-05-02'],
+      temperature_2m_min: [20, 21],
+      temperature_2m_max: [32, 33],
+    },
+    '2099-05-01'
+  );
+  assert.equal(daily.length, 2);
+  assert.equal(daily[0]?.label, 'Today');
+  assert.equal(daily[0]?.avgPm25, 60);
+  assert.equal(daily[0]?.maxPm25, 80);
+  assert.equal(daily[1]?.label, 'Tomorrow');
+  clearSnapshotCacheForTests();
+});
 
 test('searchLocations merges Open-Meteo results with presets and deduplicates', async () => {
   const originalFetch = globalThis.fetch;
@@ -181,6 +235,67 @@ test('fetchLiveEnvironmentalSnapshot handles malformed current.time safely', asy
     assert.equal(snap.dataStatus, 'LIVE');
     assert.ok(!Number.isNaN(Date.parse(snap.measuredAt)));
   } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('fetchLiveEnvironmentalSnapshot degrades gracefully when weather feed fails and bounds cache size', async () => {
+  clearSnapshotCacheForTests();
+  const originalFetch = globalThis.fetch;
+  const now = new Date();
+  const isoHour = `${now.toISOString().slice(0, 13)}:00`;
+  let aqCalls = 0;
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('air-quality-api.open-meteo.com')) {
+      aqCalls++;
+      return new Response(
+        JSON.stringify({
+          current: { time: isoHour, pm2_5: 44, pm10: 82, us_aqi: 120 },
+          hourly: { time: [isoHour], pm10: [82], pm2_5: [44], us_aqi: [120] },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    return new Response('Weather down', { status: 503 });
+  }) as typeof fetch;
+
+  try {
+    // Air quality succeeds even if weather feed returns 503
+    const first = await fetchLiveEnvironmentalSnapshot({
+      ...DEFAULT_CITY,
+      id: 'cache-evict-0',
+      latitude: 10.0,
+      longitude: 70.0,
+    });
+    assert.equal(first.dataStatus, 'LIVE');
+    assert.equal(first.weather.weatherSummary, 'Observed conditions');
+
+    // Fill cache past MAX_CACHE_ENTRIES (50) so oldest entry (10.0, 70.0) gets evicted
+    await Promise.all(
+      Array.from({ length: 52 }, (_, idx) => {
+        const i = idx + 1;
+        return fetchLiveEnvironmentalSnapshot({
+          ...DEFAULT_CITY,
+          id: `cache-evict-${i}`,
+          latitude: 10.0 + i * 0.1,
+          longitude: 70.0,
+        });
+      })
+    );
+
+    const callsBeforeRefetch = aqCalls;
+    const evictedReFetch = await fetchLiveEnvironmentalSnapshot({
+      ...DEFAULT_CITY,
+      id: 'cache-evict-0',
+      latitude: 10.0,
+      longitude: 70.0,
+    });
+    assert.equal(evictedReFetch.dataStatus, 'LIVE');
+    assert.equal(aqCalls, callsBeforeRefetch + 1);
+  } finally {
+    clearSnapshotCacheForTests();
     globalThis.fetch = originalFetch;
   }
 });

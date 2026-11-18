@@ -23,7 +23,7 @@ interface WorkspaceLayoutProps {
   onNavigate: (page: PageId) => void;
   location: CityLocation;
   unreadAlertsCount: number;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 interface NavItem {
@@ -222,8 +222,8 @@ export function WorkspaceLayout({
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
             <div className="flex min-w-0 items-center gap-2 text-sm">
-              <span className="hidden text-slate-400 sm:inline">Workspace</span>
-              <span className="hidden text-slate-300 sm:inline" aria-hidden="true">/</span>
+              <span className="hidden text-slate-500 sm:inline">Workspace</span>
+              <span className="hidden text-slate-400 sm:inline" aria-hidden="true">/</span>
               <h1 className="truncate font-display text-base font-bold text-[#102A43] sm:text-lg">
                 {currentItem?.label ?? 'Workspace'}
               </h1>
@@ -234,9 +234,9 @@ export function WorkspaceLayout({
             <button
               type="button"
               onClick={() => handleNav('dashboard')}
-              className="hidden items-center gap-1.5 whitespace-nowrap text-xs font-medium text-slate-600 hover:text-[#102A43] sm:inline-flex"
+              className="hidden items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 py-1 text-xs font-medium text-slate-600 hover:text-[#102A43] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] sm:inline-flex"
             >
-              <Activity className="h-3.5 w-3.5 text-[#20C997]" aria-hidden="true" />
+              <Activity className="h-3.5 w-3.5 text-[#0F766E]" aria-hidden="true" />
               <span>{location.name}, {location.countryCode}</span>
             </button>
             <button
@@ -249,7 +249,7 @@ export function WorkspaceLayout({
           </div>
         </header>
 
-        <main id="main-workspace" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main id="main-workspace" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 focus:outline-none sm:px-6 lg:px-8">
           {children}
         </main>
       </div>

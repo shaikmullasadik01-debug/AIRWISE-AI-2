@@ -91,7 +91,7 @@ export function CarbonReductionGallery({
   return (
     <section aria-label="Visual Carbon Reduction Guide" className="space-y-4">
       <div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#20C997]">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[#0F766E]">
           <Leaf className="h-4 w-4" aria-hidden="true" />
           <span>Visual Carbon Reduction Playbook</span>
         </div>
@@ -117,7 +117,7 @@ export function CarbonReductionGallery({
               <div>
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-semibold text-slate-500">{action.domainLabel}</span>
-                  <span className="font-mono font-bold text-[#20C997] tabular-nums">
+                  <span className="font-mono font-bold text-[#0F766E] tabular-nums">
                     {action.impactMetric}
                   </span>
                 </div>

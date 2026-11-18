@@ -37,7 +37,7 @@ export function DataStatusBanner({ snapshot, loading, onRefresh }: DataStatusBan
         ) : (
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
         )}
-        <div className="space-y-0.5 text-sm">
+        <div className="space-y-0.5 text-sm" aria-live="polite">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 font-medium">
             <span className="font-semibold">
               {isInitialConnecting

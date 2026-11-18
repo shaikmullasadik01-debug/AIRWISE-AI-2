@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-function stripControlChars(input: string, includeInvisibleUnicode = false): string {
+export function stripControlChars(input: string, includeInvisibleUnicode = false): string {
   let out = '';
   for (const ch of input) {
     const code = ch.codePointAt(0) ?? 0;
@@ -15,6 +15,14 @@ function stripControlChars(input: string, includeInvisibleUnicode = false): stri
   }
   return out.replace(/\s+/g, ' ').trim();
 }
+
+const cleanOptionalText = (maxLen: number) =>
+  z
+    .string()
+    .trim()
+    .transform((s) => stripControlChars(s))
+    .pipe(z.string().max(maxLen))
+    .optional();
 
 export const LocationSearchQuerySchema = z.object({
   q: z
@@ -32,11 +40,16 @@ export const LocationSearchQuerySchema = z.object({
 export const AirQualityQuerySchema = z.object({
   lat: z.coerce.number().finite().min(-90).max(90),
   lon: z.coerce.number().finite().min(-180).max(180),
-  name: z.string().trim().min(1).max(100).optional(),
-  region: z.string().trim().max(100).optional(),
-  country: z.string().trim().max(80).optional(),
-  countryCode: z.string().trim().max(10).optional(),
-  timezone: z.string().trim().max(80).optional(),
+  name: z
+    .string()
+    .trim()
+    .transform((s) => stripControlChars(s))
+    .pipe(z.string().min(1).max(100))
+    .optional(),
+  region: cleanOptionalText(100),
+  country: cleanOptionalText(80),
+  countryCode: cleanOptionalText(10),
+  timezone: cleanOptionalText(80),
   refresh: z.enum(['0', '1', 'true', 'false']).optional(),
 });
 
@@ -112,10 +125,24 @@ export const AssistantRequestSchema = z.object({
     .trim()
     .min(3, 'Please ask a question of at least 3 characters.')
     .max(600, 'Please keep your question under 600 characters.'),
-  locationName: z.string().trim().min(1).max(120),
-  countryCode: z.string().trim().max(10).optional().default('IN'),
+  locationName: z
+    .string()
+    .trim()
+    .transform((s) => stripControlChars(s, true))
+    .pipe(z.string().min(1).max(120)),
+  countryCode: z
+    .string()
+    .trim()
+    .transform((s) => stripControlChars(s))
+    .pipe(z.string().max(10))
+    .optional()
+    .default('IN'),
   cpcbAqi: z.number().finite().min(0).max(1000).nullable(),
-  cpcbCategory: z.string().trim().max(40),
+  cpcbCategory: z
+    .string()
+    .trim()
+    .transform((s) => stripControlChars(s))
+    .pipe(z.string().max(40)),
   usAqi: z.number().finite().min(0).max(1000).nullable(),
   pm25: z.number().finite().min(0).max(3000).nullable(),
   pm10: z.number().finite().min(0).max(3000).nullable(),

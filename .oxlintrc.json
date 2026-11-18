@@ -11,7 +11,12 @@
     "typescript/no-explicit-any": "error",
     "eqeqeq": "error",
     "no-var": "error",
-    "prefer-const": "error"
+    "prefer-const": "error",
+    "no-duplicate-imports": "error",
+    "no-useless-catch": "error",
+    "max-depth": ["error", 4],
+    "unicorn/prefer-array-find": "error",
+    "unicorn/no-useless-spread": "error"
   },
   "ignorePatterns": ["dist/**", "node_modules/**"]
 }

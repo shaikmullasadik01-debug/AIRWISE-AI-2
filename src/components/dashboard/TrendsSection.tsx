@@ -61,7 +61,7 @@ export function TrendsSection({ snapshot }: TrendsSectionProps) {
           </button>
         </div>
 
-        <div className="mt-4 h-64 w-full">
+        <div className="mt-4 h-64 w-full" aria-hidden="true">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 12, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
@@ -106,7 +106,7 @@ export function TrendsSection({ snapshot }: TrendsSectionProps) {
           AQI Category Distribution
         </h2>
         <p className="text-xs text-slate-500">Hours per CPCB category in 48h window</p>
-        <div className="mt-4 h-48 w-full">
+        <div className="mt-4 h-48 w-full" aria-hidden="true">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={insights.categoryDistribution} layout="vertical" margin={{ left: 10, right: 12 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
@@ -121,6 +121,14 @@ export function TrendsSection({ snapshot }: TrendsSectionProps) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        <ul className="sr-only" aria-label="AQI Category Distribution Summary">
+          {insights.categoryDistribution.map((entry) => (
+            <li key={`sr-${entry.category}`}>
+              {entry.category}: {entry.hours} hours
+            </li>
+          ))}
+        </ul>
 
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
           <p className="text-xs font-semibold text-[#102A43]">3-Day Daily Outlook</p>

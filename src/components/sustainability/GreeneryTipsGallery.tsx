@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BookmarkCheck, BookmarkPlus, Sprout } from 'lucide-react';
 import type { GreeneryTip, GreeneryTipCategory } from '../../types/airwise.ts';
+import { handleTabListKeyDown } from '../../lib/a11y.ts';
 import { SafeImage } from '../SafeImage.tsx';
 
 interface GreeneryTipsGalleryProps {
@@ -36,7 +37,7 @@ export function GreeneryTipsGallery({
     <section aria-label="Urban Greenery Tips" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#20C997]">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#0F766E]">
             <Sprout className="h-4 w-4" aria-hidden="true" />
             <span>Urban Greenery & Cooling Practice</span>
           </div>
@@ -51,7 +52,9 @@ export function GreeneryTipsGallery({
         <div
           className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5"
           role="tablist"
+          tabIndex={-1}
           aria-label="Filter greenery tips by setting"
+          onKeyDown={(e) => handleTabListKeyDown(e, TIP_FILTERS, filter, setFilter)}
         >
           {TIP_FILTERS.map((cat) => {
             const active = filter === cat;
@@ -110,7 +113,7 @@ export function GreeneryTipsGallery({
 
                   <dl className="mt-4 space-y-2 border-t border-slate-100 pt-3 text-xs">
                     <div>
-                      <dt className="font-semibold text-[#20C997]">Carbon & Energy Effect</dt>
+                      <dt className="font-semibold text-[#0F766E]">Carbon & Energy Effect</dt>
                       <dd className="mt-0.5 text-slate-700">{tip.carbonBenefit}</dd>
                     </div>
                     <div>
@@ -138,7 +141,7 @@ export function GreeneryTipsGallery({
                     }`}
                   >
                     {isSaved ? (
-                      <BookmarkCheck className="h-4 w-4 text-[#20C997]" aria-hidden="true" />
+                      <BookmarkCheck className="h-4 w-4 text-[#0F766E]" aria-hidden="true" />
                     ) : (
                       <BookmarkPlus className="h-4 w-4 text-slate-500" aria-hidden="true" />
                     )}

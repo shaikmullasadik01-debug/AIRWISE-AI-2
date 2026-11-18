@@ -70,7 +70,7 @@ export function DashboardPage({
           className="rounded-xl border border-slate-200 bg-white p-5 text-left transition-colors hover:border-[#38BDF8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
         >
           <p className="text-xs font-semibold text-slate-500">Estimated Weekly Carbon Savings</p>
-          <p className="mt-1 font-mono text-2xl font-bold text-[#20C997] tabular-nums">
+          <p className="mt-1 font-mono text-2xl font-bold text-[#0F766E] tabular-nums">
             {weeklyCo2SavedKg.toFixed(1)} kg CO2e
           </p>
           <p className="mt-1 text-xs text-slate-600">Open calculator for annual & community impact</p>

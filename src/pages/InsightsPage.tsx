@@ -122,13 +122,13 @@ export function InsightsPage({ snapshot }: InsightsPageProps) {
           </button>
         </div>
 
-        <div className="mt-4 h-72 w-full">
+        <div className="mt-4 h-72 w-full" aria-hidden="true">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748B' }} minTickGap={24} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#475569' }} minTickGap={24} />
               <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#102A43' }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#38BDF8' }} unit=" km/h" />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#0369A1' }} unit=" km/h" />
               <Tooltip />
               <Line
                 yAxisId="left"

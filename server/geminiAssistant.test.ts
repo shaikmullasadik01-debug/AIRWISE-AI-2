@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateAssistantAdvice } from './geminiAssistant.ts';
+import { AssistantOutputSchema } from '../src/lib/validation.ts';
 
 test('generateAssistantAdvice handles High, Moderate, Good AQI and prompt injection safely', async () => {
   const prevKey = process.env.GEMINI_API_KEY;
-  delete process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = 'MY_GEMINI_API_KEY';
 
   try {
     const highReply = await generateAssistantAdvice({
@@ -26,8 +27,29 @@ test('generateAssistantAdvice handles High, Moderate, Good AQI and prompt inject
     });
 
     assert.equal(highReply.source, 'rule-engine-fallback');
+    assert.ok(AssistantOutputSchema.safeParse(highReply).success);
     assert.ok(highReply.recommendation.what.toLowerCase().includes('indoors'));
     assert.ok(highReply.actionSteps.some((s) => s.toLowerCase().includes('calm')));
+
+    const moderateReply = await generateAssistantAdvice({
+      question: 'Should we keep windows open this afternoon?',
+      locationName: 'Bengaluru, India',
+      countryCode: 'IN',
+      cpcbAqi: 135,
+      cpcbCategory: 'Moderate',
+      usAqi: 118,
+      pm25: 44,
+      pm10: 88,
+      no2: 26,
+      o3: 41,
+      temperatureC: 25,
+      humidityPercent: 58,
+      windSpeedKmh: 11,
+      dataStatus: 'LIVE',
+      householdGroups: ['adults'],
+    });
+    assert.ok(AssistantOutputSchema.safeParse(moderateReply).success);
+    assert.ok(moderateReply.recommendation.what.toLowerCase().includes('moderate'));
 
     const goodReply = await generateAssistantAdvice({
       question: 'Is morning exercise safe today?',
@@ -46,6 +68,7 @@ test('generateAssistantAdvice handles High, Moderate, Good AQI and prompt inject
       dataStatus: 'LIVE',
       householdGroups: ['fitnessEnthusiasts'],
     });
+    assert.ok(AssistantOutputSchema.safeParse(goodReply).success);
     assert.ok(goodReply.recommendation.what.toLowerCase().includes('suitable'));
 
     const injectionReply = await generateAssistantAdvice({
@@ -65,10 +88,13 @@ test('generateAssistantAdvice handles High, Moderate, Good AQI and prompt inject
       dataStatus: 'LIVE',
       householdGroups: ['adults'],
     });
+    assert.ok(AssistantOutputSchema.safeParse(injectionReply).success);
     assert.ok(injectionReply.summary.includes('restricted instruction patterns'));
   } finally {
     if (prevKey !== undefined) {
       process.env.GEMINI_API_KEY = prevKey;
+    } else {
+      delete process.env.GEMINI_API_KEY;
     }
   }
 });

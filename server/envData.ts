@@ -20,10 +20,54 @@ interface CacheEntry {
   expiresAt: number;
 }
 
+interface AirQualityApiPayload {
+  current?: {
+    time?: string;
+    pm10?: number;
+    pm2_5?: number;
+    carbon_monoxide?: number;
+    nitrogen_dioxide?: number;
+    sulphur_dioxide?: number;
+    ozone?: number;
+    us_aqi?: number;
+  };
+  hourly?: {
+    time?: string[];
+    pm10?: Array<number | null>;
+    pm2_5?: Array<number | null>;
+    us_aqi?: Array<number | null>;
+  };
+}
+
+interface WeatherApiPayload {
+  current?: {
+    temperature_2m?: number;
+    relative_humidity_2m?: number;
+    wind_speed_10m?: number;
+    weather_code?: number;
+  };
+  hourly?: {
+    time?: string[];
+    temperature_2m?: Array<number | null>;
+    wind_speed_10m?: Array<number | null>;
+    visibility?: Array<number | null>;
+  };
+  daily?: {
+    time?: string[];
+    temperature_2m_max?: Array<number | null>;
+    temperature_2m_min?: Array<number | null>;
+  };
+}
+
 const CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 50;
 const snapshotCache = new Map<string, CacheEntry>();
 
-function weatherCodeToSummary(code: unknown): string {
+export function clearSnapshotCacheForTests(): void {
+  snapshotCache.clear();
+}
+
+export function weatherCodeToSummary(code: unknown): string {
   if (typeof code !== 'number') return 'Observed conditions';
   if (code === 0) return 'Clear sky';
   if (code <= 3) return 'Partly cloudy';
@@ -33,6 +77,149 @@ function weatherCodeToSummary(code: unknown): string {
   if (code >= 80 && code <= 82) return 'Rain showers';
   if (code >= 95) return 'Thunderstorm';
   return 'Mixed sky';
+}
+
+export function parseCurrentPollutants(
+  currentAq: NonNullable<AirQualityApiPayload['current']> | undefined
+): PollutantReadings {
+  const coRawUg = sanitizeMeasurement(currentAq?.carbon_monoxide, 100000);
+  return {
+    pm25: sanitizeMeasurement(currentAq?.pm2_5, 2500),
+    pm10: sanitizeMeasurement(currentAq?.pm10, 3500),
+    no2: sanitizeMeasurement(currentAq?.nitrogen_dioxide, 2000),
+    so2: sanitizeMeasurement(currentAq?.sulphur_dioxide, 3000),
+    co: coRawUg !== null ? Math.round((coRawUg / 1000) * 100) / 100 : null,
+    o3: sanitizeMeasurement(currentAq?.ozone, 1500),
+  };
+}
+
+export function buildHourlyPoints(
+  aqHourly: AirQualityApiPayload['hourly'],
+  wxHourly: WeatherApiPayload['hourly'] | undefined,
+  nowMs: number
+): HourlyPoint[] {
+  const times = aqHourly?.time ?? [];
+  const wxTimes = wxHourly?.time ?? [];
+  const wxIndexMap = new Map<string, number>();
+  wxTimes.forEach((t, i) => wxIndexMap.set(t, i));
+
+  const windowStart = nowMs - 24 * 3600 * 1000;
+  const windowEnd = nowMs + 24 * 3600 * 1000;
+  const hourly: HourlyPoint[] = [];
+
+  for (let i = 0; i < times.length; i++) {
+    const t = times[i];
+    if (!t) continue;
+    const ts = Date.parse(t);
+    if (Number.isNaN(ts) || ts < windowStart || ts > windowEnd) continue;
+
+    const pm25 = sanitizeMeasurement(aqHourly?.pm2_5?.[i], 2500);
+    const pm10 = sanitizeMeasurement(aqHourly?.pm10?.[i], 3500);
+    const hCpcb = calculateCpcbAqi({
+      pm25,
+      pm10,
+      no2: null,
+      so2: null,
+      co: null,
+      o3: null,
+    });
+    const wxIdx = wxIndexMap.get(t);
+    const tempC =
+      wxIdx !== undefined ? sanitizeMeasurement(wxHourly?.temperature_2m?.[wxIdx], 65) : null;
+    const windKmh =
+      wxIdx !== undefined ? sanitizeMeasurement(wxHourly?.wind_speed_10m?.[wxIdx], 250) : null;
+
+    hourly.push({
+      time: t,
+      label: t.slice(11, 16),
+      pm25,
+      pm10,
+      cpcbAqi: hCpcb.aqi,
+      usAqi: sanitizeMeasurement(aqHourly?.us_aqi?.[i], 500),
+      temperatureC: tempC,
+      windSpeedKmh: windKmh,
+      isForecast: ts > nowMs,
+    });
+  }
+
+  return hourly;
+}
+
+export function buildDailyForecast(
+  aqHourly: AirQualityApiPayload['hourly'],
+  wxDaily: WeatherApiPayload['daily'] | undefined,
+  todayStr: string
+): DailyForecastPoint[] {
+  const times = aqHourly?.time ?? [];
+  const dailyMap = new Map<string, number[]>();
+
+  for (let i = 0; i < times.length; i++) {
+    const t = times[i];
+    if (!t) continue;
+    const dayKey = t.slice(0, 10);
+    const val = sanitizeMeasurement(aqHourly?.pm2_5?.[i], 2500);
+    if (val !== null) {
+      const list = dailyMap.get(dayKey) ?? [];
+      list.push(val);
+      dailyMap.set(dayKey, list);
+    }
+  }
+
+  const dailyDates = wxDaily?.time ?? Array.from(dailyMap.keys());
+  return dailyDates
+    .filter((d) => d >= todayStr)
+    .slice(0, 3)
+    .map((date, idx) => {
+      const vals = dailyMap.get(date) ?? [];
+      const avgPm25 =
+        vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
+      const maxPm25 = vals.length > 0 ? Math.max(...vals) : null;
+      const dCpcb = calculateCpcbAqi({
+        pm25: avgPm25,
+        pm10: null,
+        no2: null,
+        so2: null,
+        co: null,
+        o3: null,
+      });
+      const wxDailyIdx = wxDaily?.time?.indexOf(date) ?? -1;
+      return {
+        date,
+        label: idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : date.slice(5),
+        avgPm25,
+        maxPm25,
+        cpcbAqi: dCpcb.aqi,
+        category: getCpcbCategory(dCpcb.aqi),
+        tempMinC:
+          wxDailyIdx >= 0 ? sanitizeMeasurement(wxDaily?.temperature_2m_min?.[wxDailyIdx], 65) : null,
+        tempMaxC:
+          wxDailyIdx >= 0 ? sanitizeMeasurement(wxDaily?.temperature_2m_max?.[wxDailyIdx], 65) : null,
+      };
+    });
+}
+
+export function extractLatestVisibilityKm(wxHourly: WeatherApiPayload['hourly'] | undefined): number | null {
+  const visArr = wxHourly?.visibility ?? [];
+  if (visArr.length === 0) return null;
+  const midIdx = Math.min(visArr.length - 1, Math.floor(visArr.length / 2));
+  const visMeters = sanitizeMeasurement(visArr[midIdx], 100000);
+  return visMeters !== null ? Math.round((visMeters / 1000) * 10) / 10 : null;
+}
+
+function setCachedSnapshot(cacheKey: string, snapshot: EnvironmentalSnapshot): void {
+  const now = Date.now();
+  if (snapshotCache.size >= MAX_CACHE_ENTRIES) {
+    for (const [k, entry] of snapshotCache) {
+      if (entry.expiresAt <= now) {
+        snapshotCache.delete(k);
+      }
+    }
+    if (snapshotCache.size >= MAX_CACHE_ENTRIES) {
+      const firstKey = snapshotCache.keys().next().value;
+      if (firstKey) snapshotCache.delete(firstKey);
+    }
+  }
+  snapshotCache.set(cacheKey, { snapshot, expiresAt: now + CACHE_TTL_MS });
 }
 
 export async function searchLocations(query: string): Promise<CityLocation[]> {
@@ -82,7 +269,6 @@ export async function searchLocations(query: string): Promise<CityLocation[]> {
       isIndia: (r.country_code ?? '').toUpperCase() === 'IN',
     }));
 
-    // Deduplicate by name + countryCode
     const seen = new Set<string>();
     const combined: CityLocation[] = [];
     for (const item of [...mapped, ...presetMatches]) {
@@ -121,15 +307,13 @@ export async function fetchLiveEnvironmentalSnapshot(
       `https://air-quality-api.open-meteo.com/v1/air-quality` +
       `?latitude=${location.latitude}&longitude=${location.longitude}` +
       `&current=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi` +
-      `&hourly=pm10,pm2_5,us_aqi` +
-      `&past_days=1&forecast_days=3&timezone=auto`;
+      `&hourly=pm10,pm2_5,us_aqi&past_days=1&forecast_days=3&timezone=auto`;
 
     const wxUrl =
       `https://api.open-meteo.com/v1/forecast` +
       `?latitude=${location.latitude}&longitude=${location.longitude}` +
       `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code` +
-      `&hourly=temperature_2m,wind_speed_10m,visibility` +
-      `&daily=temperature_2m_max,temperature_2m_min` +
+      `&hourly=temperature_2m,wind_speed_10m,visibility&daily=temperature_2m_max,temperature_2m_min` +
       `&past_days=1&forecast_days=3&timezone=auto`;
 
     const [aqRes, wxRes] = await Promise.all([
@@ -141,164 +325,17 @@ export async function fetchLiveEnvironmentalSnapshot(
       throw new Error(`Air quality API returned HTTP ${aqRes.status}`);
     }
 
-    const aqJson = (await aqRes.json()) as {
-      current?: {
-        time?: string;
-        pm10?: number;
-        pm2_5?: number;
-        carbon_monoxide?: number;
-        nitrogen_dioxide?: number;
-        sulphur_dioxide?: number;
-        ozone?: number;
-        us_aqi?: number;
-      };
-      hourly?: {
-        time?: string[];
-        pm10?: Array<number | null>;
-        pm2_5?: Array<number | null>;
-        us_aqi?: Array<number | null>;
-      };
-    };
+    const aqJson = (await aqRes.json()) as AirQualityApiPayload;
+    const wxJson = wxRes.ok ? ((await wxRes.json()) as WeatherApiPayload) : null;
 
-    const wxJson = wxRes.ok
-      ? ((await wxRes.json()) as {
-          current?: {
-            temperature_2m?: number;
-            relative_humidity_2m?: number;
-            wind_speed_10m?: number;
-            weather_code?: number;
-          };
-          hourly?: {
-            time?: string[];
-            temperature_2m?: Array<number | null>;
-            wind_speed_10m?: Array<number | null>;
-            visibility?: Array<number | null>;
-          };
-          daily?: {
-            time?: string[];
-            temperature_2m_max?: Array<number | null>;
-            temperature_2m_min?: Array<number | null>;
-          };
-        })
-      : null;
-
-    const currentAq = aqJson.current ?? {};
-    const coRawUg = sanitizeMeasurement(currentAq.carbon_monoxide, 100000);
-    const pollutants: PollutantReadings = {
-      pm25: sanitizeMeasurement(currentAq.pm2_5, 2500),
-      pm10: sanitizeMeasurement(currentAq.pm10, 3500),
-      no2: sanitizeMeasurement(currentAq.nitrogen_dioxide, 2000),
-      so2: sanitizeMeasurement(currentAq.sulphur_dioxide, 3000),
-      co: coRawUg !== null ? Math.round((coRawUg / 1000) * 100) / 100 : null,
-      o3: sanitizeMeasurement(currentAq.ozone, 1500),
-    };
-
+    const pollutants = parseCurrentPollutants(aqJson.current);
     const cpcb = calculateCpcbAqi(pollutants);
     const usComputed = calculateUsAqiFromParticulates(pollutants.pm25, pollutants.pm10);
-    const usAqi = sanitizeMeasurement(currentAq.us_aqi, 500) ?? usComputed.aqi;
+    const usAqi = sanitizeMeasurement(aqJson.current?.us_aqi, 500) ?? usComputed.aqi;
 
-    const nowIso = new Date().toISOString();
-    const measuredAt = parseIsoTimestampOrNow(currentAq.time);
     const nowMs = Date.now();
-
-    const times = aqJson.hourly?.time ?? [];
-    const wxTimes = wxJson?.hourly?.time ?? [];
-    const wxIndexMap = new Map<string, number>();
-    wxTimes.forEach((t, i) => wxIndexMap.set(t, i));
-
-    const hourly: HourlyPoint[] = [];
-    // Keep roughly 24h past and 24h forecast
-    for (let i = 0; i < times.length; i++) {
-      const t = times[i];
-      if (!t) continue;
-      const ts = Date.parse(t);
-      if (Number.isNaN(ts)) continue;
-      if (ts < nowMs - 24 * 3600 * 1000 || ts > nowMs + 24 * 3600 * 1000) continue;
-
-      const pm25 = sanitizeMeasurement(aqJson.hourly?.pm2_5?.[i], 2500);
-      const pm10 = sanitizeMeasurement(aqJson.hourly?.pm10?.[i], 3500);
-      const hCpcb = calculateCpcbAqi({
-        pm25,
-        pm10,
-        no2: null,
-        so2: null,
-        co: null,
-        o3: null,
-      });
-      const wxIdx = wxIndexMap.get(t);
-      const tempC =
-        wxIdx !== undefined ? sanitizeMeasurement(wxJson?.hourly?.temperature_2m?.[wxIdx], 65) : null;
-      const windKmh =
-        wxIdx !== undefined ? sanitizeMeasurement(wxJson?.hourly?.wind_speed_10m?.[wxIdx], 250) : null;
-
-      hourly.push({
-        time: t,
-        label: t.slice(11, 16),
-        pm25,
-        pm10,
-        cpcbAqi: hCpcb.aqi,
-        usAqi: sanitizeMeasurement(aqJson.hourly?.us_aqi?.[i], 500),
-        temperatureC: tempC,
-        windSpeedKmh: windKmh,
-        isForecast: ts > nowMs,
-      });
-    }
-
-    // Aggregate daily forecasts
-    const dailyMap = new Map<string, number[]>();
-    for (let i = 0; i < times.length; i++) {
-      const t = times[i];
-      if (!t) continue;
-      const dayKey = t.slice(0, 10);
-      const val = sanitizeMeasurement(aqJson.hourly?.pm2_5?.[i], 2500);
-      if (val !== null) {
-        const list = dailyMap.get(dayKey) ?? [];
-        list.push(val);
-        dailyMap.set(dayKey, list);
-      }
-    }
-
-    const dailyDates = wxJson?.daily?.time ?? Array.from(dailyMap.keys());
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const daily: DailyForecastPoint[] = dailyDates
-      .filter((d) => d >= todayStr)
-      .slice(0, 3)
-      .map((date, idx) => {
-        const vals = dailyMap.get(date) ?? [];
-        const avgPm25 =
-          vals.length > 0 ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10 : null;
-        const maxPm25 = vals.length > 0 ? Math.max(...vals) : null;
-        const dCpcb = calculateCpcbAqi({
-          pm25: avgPm25,
-          pm10: null,
-          no2: null,
-          so2: null,
-          co: null,
-          o3: null,
-        });
-        const wxDailyIdx = wxJson?.daily?.time?.indexOf(date) ?? -1;
-        return {
-          date,
-          label: idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : date.slice(5),
-          avgPm25,
-          maxPm25,
-          cpcbAqi: dCpcb.aqi,
-          category: getCpcbCategory(dCpcb.aqi),
-          tempMinC:
-            wxDailyIdx >= 0 ? sanitizeMeasurement(wxJson?.daily?.temperature_2m_min?.[wxDailyIdx], 65) : null,
-          tempMaxC:
-            wxDailyIdx >= 0 ? sanitizeMeasurement(wxJson?.daily?.temperature_2m_max?.[wxDailyIdx], 65) : null,
-        };
-      });
-
-    // Latest visibility from weather hourly nearest to now
-    let visibilityKm: number | null = null;
-    const visArr = wxJson?.hourly?.visibility ?? [];
-    if (visArr.length > 0) {
-      const midIdx = Math.min(visArr.length - 1, Math.floor(visArr.length / 2));
-      const visMeters = sanitizeMeasurement(visArr[midIdx], 100000);
-      if (visMeters !== null) visibilityKm = Math.round((visMeters / 1000) * 10) / 10;
-    }
+    const nowIso = new Date(nowMs).toISOString();
+    const todayStr = nowIso.slice(0, 10);
 
     const snapshot: EnvironmentalSnapshot = {
       location,
@@ -306,14 +343,14 @@ export async function fetchLiveEnvironmentalSnapshot(
       statusMessage: 'Live regional air quality and meteorological measurements retrieved.',
       stationLabel: `${location.name} Grid (${location.latitude.toFixed(2)}°, ${location.longitude.toFixed(2)}°)`,
       provider: 'Open-Meteo Atmospheric & Weather Feeds (CPCB/EPA Indices Computed)',
-      measuredAt,
+      measuredAt: parseIsoTimestampOrNow(aqJson.current?.time),
       lastSuccessfulUpdate: nowIso,
       pollutants,
       weather: {
         temperatureC: sanitizeMeasurement(wxJson?.current?.temperature_2m, 65),
         humidityPercent: sanitizeMeasurement(wxJson?.current?.relative_humidity_2m, 100),
         windSpeedKmh: sanitizeMeasurement(wxJson?.current?.wind_speed_10m, 250),
-        visibilityKm,
+        visibilityKm: extractLatestVisibilityKm(wxJson?.hourly),
         weatherSummary: weatherCodeToSummary(wxJson?.current?.weather_code),
       },
       cpcbAqi: cpcb.aqi,
@@ -322,24 +359,11 @@ export async function fetchLiveEnvironmentalSnapshot(
       usAqi,
       usCategory: usComputed.category,
       whoRatios: calculateWhoRatios(pollutants),
-      hourly,
-      daily,
+      hourly: buildHourlyPoints(aqJson.hourly, wxJson?.hourly, nowMs),
+      daily: buildDailyForecast(aqJson.hourly, wxJson?.daily, todayStr),
     };
 
-    if (snapshotCache.size >= 50) {
-      const now = Date.now();
-      for (const [k, entry] of snapshotCache) {
-        if (entry.expiresAt <= now) {
-          snapshotCache.delete(k);
-        }
-      }
-      if (snapshotCache.size >= 50) {
-        const firstKey = snapshotCache.keys().next().value;
-        if (firstKey) snapshotCache.delete(firstKey);
-      }
-    }
-    snapshotCache.set(cacheKey, { snapshot, expiresAt: Date.now() + CACHE_TTL_MS });
-
+    setCachedSnapshot(cacheKey, snapshot);
     return snapshot;
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Network error';

@@ -8,6 +8,7 @@ import {
   PersistedStateSchema,
   hasUnsafeObjectKeys,
   sanitizeUserPrompt,
+  stripControlChars,
 } from './validation.ts';
 
 test('LocationSearchQuerySchema strips control chars and enforces length bounds', () => {
@@ -33,6 +34,20 @@ test('AirQualityQuerySchema validates coordinate bounds and rejects non-finite n
 
   const badInf = AirQualityQuerySchema.safeParse({ lat: Infinity, lon: 77 });
   assert.equal(badInf.success, false);
+
+  const sanitizedMeta = AirQualityQuerySchema.safeParse({
+    lat: 28.6139,
+    lon: 77.209,
+    name: 'New\u0007Delhi',
+    region: 'Delhi\u001bNCR',
+    country: 'India\u0000',
+  });
+  assert.equal(sanitizedMeta.success, true);
+  if (sanitizedMeta.success) {
+    assert.equal(sanitizedMeta.data.name, 'New Delhi');
+    assert.equal(sanitizedMeta.data.region, 'Delhi NCR');
+    assert.equal(sanitizedMeta.data.country, 'India');
+  }
 });
 
 test('sanitizeUserPrompt strips invisible unicode chars and flags injection variants', () => {
@@ -61,6 +76,15 @@ test('hasUnsafeObjectKeys detects prototype pollution vectors recursively', () =
 
   const nestedCtor = { nested: { constructor: { prototype: {} } } };
   assert.equal(hasUnsafeObjectKeys(nestedCtor), true);
+
+  // Recursion terminates cleanly beyond depth 10 without stack overflow
+  let deep: Record<string, unknown> = { ok: true };
+  for (let i = 0; i < 15; i++) {
+    deep = { child: deep };
+  }
+  assert.equal(hasUnsafeObjectKeys(deep), false);
+
+  assert.equal(stripControlChars('Hello\u200B\u0007World', true), 'Hello World');
 });
 
 test('PersistedStateSchema rejects tampered localStorage values safely', () => {
@@ -124,4 +148,28 @@ test('AssistantRequestSchema & AssistantOutputSchema enforce strict structure', 
     disclaimer: 'Environmental guidance only, not medical advice.',
   });
   assert.equal(goodOut.success, true);
+
+  const reqWithControlChars = AssistantRequestSchema.safeParse({
+    question: 'Is outdoor walking safe?',
+    locationName: 'New\u200BDelhi\u0007',
+    countryCode: 'IN\u0000',
+    cpcbAqi: 180,
+    cpcbCategory: 'Moderate\u0007',
+    usAqi: 150,
+    pm25: 80,
+    pm10: 120,
+    no2: 28,
+    o3: 40,
+    temperatureC: 22,
+    humidityPercent: 55,
+    windSpeedKmh: 7,
+    dataStatus: 'LIVE',
+    householdGroups: ['adults'],
+  });
+  assert.equal(reqWithControlChars.success, true);
+  if (reqWithControlChars.success) {
+    assert.equal(reqWithControlChars.data.locationName, 'New Delhi');
+    assert.equal(reqWithControlChars.data.countryCode, 'IN');
+    assert.equal(reqWithControlChars.data.cpcbCategory, 'Moderate');
+  }
 });

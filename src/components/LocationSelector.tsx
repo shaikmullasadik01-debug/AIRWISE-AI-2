@@ -110,9 +110,9 @@ export function LocationSelector({
     <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2.5 text-sm text-[#102A43]">
-          <MapPin className="h-4 w-4 text-[#20C997] shrink-0" aria-hidden="true" />
+          <MapPin className="h-4 w-4 text-[#0F766E] shrink-0" aria-hidden="true" />
           <span className="font-semibold">{currentLocation.name}</span>
-          <span className="text-slate-400" aria-hidden="true">·</span>
+          <span className="text-slate-500" aria-hidden="true">·</span>
           <span className="text-slate-600">
             {currentLocation.region}, {currentLocation.country}
           </span>
@@ -126,7 +126,7 @@ export function LocationSelector({
               </label>
               <div className="relative flex-1 sm:w-64">
                 <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
                   aria-hidden="true"
                 />
                 <input
@@ -135,7 +135,7 @@ export function LocationSelector({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search city (e.g., Pune, Delhi, Tokyo)"
-                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-[#102A43] placeholder:text-slate-400 focus:border-[#38BDF8] focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30"
+                  className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-[#102A43] placeholder:text-slate-500 focus:border-[#38BDF8] focus:outline-none focus:ring-2 focus:ring-[#38BDF8]/30"
                 />
               </div>
               <button
@@ -154,7 +154,7 @@ export function LocationSelector({
             disabled={geoLoading}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm font-medium text-[#102A43] transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8] disabled:opacity-50 whitespace-nowrap shrink-0"
           >
-            <LocateFixed className="h-4 w-4 text-[#20C997]" aria-hidden="true" />
+            <LocateFixed className="h-4 w-4 text-[#0F766E]" aria-hidden="true" />
             <span>{geoLoading ? 'Locating...' : 'Use My Location'}</span>
           </button>
         </div>

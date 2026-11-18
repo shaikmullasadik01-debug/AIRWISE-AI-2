@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
-import { clearRateLimitBucketsForTests, createApp } from '../server.ts';
+import { clearRateLimitBucketsForTests, createApp, isAllowedOrigin } from '../server.ts';
 
 async function withServer(run: (baseUrl: string) => Promise<void>) {
   clearRateLimitBucketsForTests();
@@ -137,6 +137,8 @@ test('Security headers, 404 API isolation, prototype pollution, payload size, an
     assert.equal(health.headers.get('x-frame-options'), 'SAMEORIGIN');
     assert.equal(health.headers.get('content-security-policy'), "default-src 'none'; frame-ancestors 'none'");
     assert.equal(health.headers.get('cross-origin-resource-policy'), 'same-origin');
+    assert.equal(health.headers.get('cross-origin-opener-policy'), 'same-origin');
+    assert.equal(health.headers.get('x-robots-tag'), 'noindex, nofollow');
     assert.equal(health.headers.get('x-dns-prefetch-control'), 'off');
     assert.equal(health.headers.get('x-permitted-cross-domain-policies'), 'none');
     assert.equal(health.headers.get('cache-control'), 'no-store');
@@ -190,7 +192,53 @@ test('Security headers, 404 API isolation, prototype pollution, payload size, an
       body: JSON.stringify(VALID_ASSISTANT_BODY),
     });
     assert.equal(crossOrigin.status, 403);
+
+    // Spoofed Host header paired with matching attacker Origin is still blocked with 403
+    const spoofedHost = await fetch(`${baseUrl}/api/assistant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Host: 'attacker.example',
+        Origin: 'https://attacker.example',
+      },
+      body: JSON.stringify(VALID_ASSISTANT_BODY),
+    });
+    assert.equal(spoofedHost.status, 403);
+
+    // Non-JSON POST triggers 415 Unsupported Media Type (blocks simple-request CSRF)
+    const wrongContentType = await fetch(`${baseUrl}/api/assistant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      body: JSON.stringify(VALID_ASSISTANT_BODY),
+    });
+    assert.equal(wrongContentType.status, 415);
+
+    // Control characters in query strings are sanitized before constructing location snapshot
+    const cleanQuery = await fetch(
+      `${baseUrl}/api/air-quality?lat=28.6139&lon=77.209&name=${encodeURIComponent('Delhi\x07Test')}`
+    );
+    assert.equal(cleanQuery.status, 200);
+    const cleanJson = (await cleanQuery.json()) as { snapshot: { location: { name: string } } };
+    assert.ok(!cleanJson.snapshot.location.name.includes('\x07'));
   });
+});
+
+const makeOriginRequest = (host?: string) => ({ headers: host ? { host } : {} }) as never;
+
+test('isAllowedOrigin enforces strict protocol, host, and Cloud Run preview validation', () => {
+  assert.equal(isAllowedOrigin('http://localhost:3000', makeOriginRequest('localhost:3000')), true);
+  assert.equal(
+    isAllowedOrigin('https://ais-dev-demo.asia-southeast1.run.app', makeOriginRequest('localhost:3000')),
+    true
+  );
+  assert.equal(isAllowedOrigin('https://evil.example', makeOriginRequest('evil.example')), false);
+  assert.equal(isAllowedOrigin('javascript:alert(1)', makeOriginRequest('localhost:3000')), false);
+  assert.equal(
+    isAllowedOrigin('https://localhost:3000/extra-path', makeOriginRequest('localhost:3000')),
+    false
+  );
 });
 
 test('Rate limiter emits standard RateLimit headers and enforces 429 on burst traffic', async () => {
